@@ -1,23 +1,78 @@
-// navigation/index.js
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React, { useContext } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import DashboardScreen from 'screens/DashboardScreen';
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+
+// Screens
+import WelcomeScreen from "./screens/WelcomeScreen";
+import LoginScreen from "./screens/LoginScreen";
+import SignupScreen from "./screens/SignupScreen";
+import DashboardScreen from "./DashboardScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
-export default function Navigation({ theme }) {
+/* ---------------- AppStack ---------------- */
+function AppStack() {
   return (
-    <NavigationContainer theme={theme}>
-   <Stack.Navigator>
-   <Stack.Screen 
-      name="Dashboard" 
-      component={DashboardScreen} 
-      options={{ headerShown: false }}
-   />
-</Stack.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ headerShown: true, headerTitle: "Profile" }}
+      />
+    </Stack.Navigator>
+  );
+}
 
+/* ---------------- AuthStack ---------------- */
+function AuthStack() {
+  return (
+    <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ headerShown: true, headerTitle: "Login" }}
+      />
+      <Stack.Screen
+        name="Signup"
+        component={SignupScreen}
+        options={{ headerShown: true, headerTitle: "Sign Up" }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+/* ---------------- RootNavigator ---------------- */
+function RootNavigator() {
+  const { userToken, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer theme={DefaultTheme}>
+      {userToken ? <AppStack /> : <AuthStack />}
     </NavigationContainer>
+  );
+}
+
+/* ---------------- App (main entry) ---------------- */
+export default function App() {
+  return (
+    <AuthProvider>
+      <StatusBar style="auto" />
+      <RootNavigator />
+    </AuthProvider>
   );
 }
