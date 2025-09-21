@@ -4,17 +4,15 @@ import { View, Text, StyleSheet, Image } from "react-native";
 export default function WelcomeScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      // 👇 Move to Onboarding, not Login
       navigation.replace("Onboarding");
     }, 2500);
-
     return () => clearTimeout(timer);
   }, [navigation]);
 
   return (
     <View style={styles.container}>
       <Image
-        source={require("../assets/healio_logo.png")} // ✅ ensure correct relative path
+        source={require("../assets/healio_logo.png")}
         style={styles.logo}
         resizeMode="contain"
       />

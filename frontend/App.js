@@ -1,34 +1,49 @@
 // App.js
-import React, { useContext } from "react";
-import { View, ActivityIndicator } from "react-native";
+import React, { useContext, useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 
 // Screens
-import WelcomeScreen from "./screens/WelcomeScreen";
-import OnboardingScreen1 from "./screens/OnboardingScreen1";
+import OnboardingScreen from "./screens/OnboardingScreen1";
 import LoginScreen from "./screens/LoginScreen";
-import SignupScreen from "./screens/SignupScreen";
-import DashboardScreen from "./screens/DashboardScreen";
+import WelcomeScreen from "./screens/WelcomeScreen";
+import MoodLogScreen from "./screens/MoodLogScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import MoodLogScreen from "./screens/MoodLogScreen"; // 👈 added
+
+// UI
+import BottomBar from "./components/BottomBar";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-/* ---------------- App (authenticated) ---------------- */
+/* ---------- Tabs after login ---------- */
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="MoodLog"         // MoodLog first after login
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <BottomBar {...props} />}
+    >
+      <Tab.Screen name="MoodLog" component={MoodLogScreen} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+    </Tab.Navigator>
+  );
+}
+
+/* ---------- App (authenticated) ---------- 
+   After login we show Welcome first, then tabs.
+*/
 function AppStack() {
   return (
-    <Stack.Navigator
-      initialRouteName="MoodLog" // 👈 start here after login
-      screenOptions={{ headerShown: false }}
-    >
-      <Stack.Screen name="MoodLog" component={MoodLogScreen} />
-      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />   {/* landing/choice */}
+      <Stack.Screen name="MainTabs" component={MainTabs} />       {/* MoodLog + Dashboard */}
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
@@ -38,69 +53,40 @@ function AppStack() {
   );
 }
 
-/* ---------------- Auth (unauthenticated) ---------------- */
-function AuthStack({ hasOnboarded, setHasOnboarded }) {
+/* ---------- Auth (unauthenticated) ---------- 
+   Only Login here per your flow (onboarding handled by Root).
+*/
+function AuthStack() {
   return (
-    <Stack.Navigator
-      initialRouteName="Welcome"
-      screenOptions={{ headerShown: false }}
-    >
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen
-        name="Login"
-        component={LoginScreen}
-        options={{ headerShown: true, headerTitle: "Login" }}
-      />
-      <Stack.Screen
-        name="Signup"
-        component={SignupScreen}
-        options={{ headerShown: true, headerTitle: "Sign Up" }}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+      <Stack.Screen name="Login" component={LoginScreen} />
     </Stack.Navigator>
   );
 }
 
-/* ---------------- Root Navigator ---------------- */
+/* ---------- Root Navigator (single stack, always start with Welcome) ---------- */
 function RootNavigator() {
-  const { userToken, loading } = useContext(AuthContext);
-  const [hasOnboarded, setHasOnboarded] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  // Check AsyncStorage for onboarding flag
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      try {
-        const value = await AsyncStorage.getItem("hasOnboarded");
-        setHasOnboarded(!!value);
-      } catch (err) {
-        console.error("Error checking onboarding:", err);
-      } finally {
-        setChecking(false);
-      }
-    };
-    checkOnboarding();
-  }, []);
-
-  if (loading || checking) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
+  const { userToken } = useContext(AuthContext);
   return (
     <NavigationContainer theme={DefaultTheme}>
-      {userToken ? (
-        <AppStack />
-      ) : (
-        <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />
-      )}
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Signup" component={require('./screens/SignupScreen').default} />
+        <Stack.Screen name="MoodLog" component={MoodLogScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ headerShown: true, headerTitle: "Profile" }}
+        />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
-/* ---------------- App (entry) ---------------- */
+/* ---------- App entry ---------- */
 export default function App() {
   return (
     <AuthProvider>

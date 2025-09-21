@@ -1,6 +1,5 @@
 // /navigation/AppNavigator.jsx
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Colors } from "../utils/Colors";
 
@@ -18,22 +17,21 @@ const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        initialRouteName="Dashboard"
-        screenOptions={{
-          headerShown: false,
-        }}
-        // Use custom bottom bar (rounded + center FAB)
-        tabBar={(props) => <BottomBar {...props} />}
-      >
-        <Tab.Screen name="Dashboard" component={DashboardScreen} />
-        <Tab.Screen name="MoodLog" component={MoodLogScreen} />
-        {/* Add these when you create the screens */}
-        {/* <Tab.Screen name="Trends" component={TrendsScreen} /> */}
-        {/* <Tab.Screen name="Reports" component={ReportScreen} /> */}
-        {/* <Tab.Screen name="Settings" component={SettingsScreen} /> */}
-      </Tab.Navigator>
-    </NavigationContainer>
+    <Tab.Navigator
+      initialRouteName="MoodLog"      // 👈 start here after login
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: Colors.navActive ?? Colors.secondary,
+        tabBarInactiveTintColor: Colors.navIcon ?? Colors.textSecondary,
+      }}
+      // Use custom bottom bar (rounded + center FAB)
+      tabBar={(props) => <BottomBar {...props} />}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="MoodLog" component={MoodLogScreen} />
+      {/* <Tab.Screen name="Trends" component={TrendsScreen} /> */}
+      {/* <Tab.Screen name="Reports" component={ReportScreen} /> */}
+      {/* <Tab.Screen name="Settings" component={SettingsScreen} /> */}
+    </Tab.Navigator>
   );
 }
