@@ -4,20 +4,23 @@ import { View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 
 // Screens
 import WelcomeScreen from "./screens/WelcomeScreen";
+import OnboardingScreen1 from "./screens/OnboardingScreen1";
 import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
+import DashboardScreen from "./screens/DashboardScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import MoodLogScreen from "./screens/MoodLogScreen"; // 👈 added
 
 const Stack = createNativeStackNavigator();
 
-/* ---------------- AppStack ---------------- */
+/* ---------------- App (authenticated) ---------------- */
 function AppStack() {
   return (
     <Stack.Navigator
@@ -35,8 +38,8 @@ function AppStack() {
   );
 }
 
-/* ---------------- AuthStack ---------------- */
-function AuthStack() {
+/* ---------------- Auth (unauthenticated) ---------------- */
+function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
       initialRouteName="Welcome"
@@ -57,11 +60,28 @@ function AuthStack() {
   );
 }
 
-/* ---------------- RootNavigator ---------------- */
+/* ---------------- Root Navigator ---------------- */
 function RootNavigator() {
   const { userToken, loading } = useContext(AuthContext);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  if (loading) {
+  // Check AsyncStorage for onboarding flag
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const value = await AsyncStorage.getItem("hasOnboarded");
+        setHasOnboarded(!!value);
+      } catch (err) {
+        console.error("Error checking onboarding:", err);
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkOnboarding();
+  }, []);
+
+  if (loading || checking) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
@@ -71,12 +91,16 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={DefaultTheme}>
-      {userToken ? <AppStack /> : <AuthStack />}
+      {userToken ? (
+        <AppStack />
+      ) : (
+        <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />
+      )}
     </NavigationContainer>
   );
 }
 
-/* ---------------- App (main entry) ---------------- */
+/* ---------------- App (entry) ---------------- */
 export default function App() {
   return (
     <AuthProvider>
