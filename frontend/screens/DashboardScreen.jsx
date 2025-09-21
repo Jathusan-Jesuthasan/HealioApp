@@ -1,3 +1,4 @@
+// /screens/DashboardScreen.jsx
 import React from "react";
 import { ScrollView, Text, StyleSheet, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
@@ -8,10 +9,20 @@ import { Colors } from "../utils/Colors";
 const screenWidth = Dimensions.get("window").width - 48; // account for padding + card spacing
 
 const DashboardScreen = () => {
+  // Dummy data (replace later with DB/API)
   const mindBalanceScore = 72;
-  const progressMilestone = 0.2;
+  const progressMilestone = 0.2; // 20%
+  const weeklyMoods = [3, 4, 2, 5, 4, 3, 4]; // scale 1–5
   const aiRiskDetected = false;
-  const weeklyMoods = [3, 4, 2, 5, 4, 3, 4];
+
+  // Risk level based on score (simple rule)
+  const getRiskLevel = (score) => {
+    if (score >= 70) return { label: "Stable", color: Colors.stable };
+    if (score >= 50) return { label: "Mild Concern", color: Colors.warning };
+    return { label: "High Risk", color: Colors.danger };
+  };
+
+  const risk = getRiskLevel(mindBalanceScore);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -24,27 +35,15 @@ const DashboardScreen = () => {
       <Card>
         <Text style={styles.title}>⚖️ Mind Balance Score</Text>
         <Text style={styles.score}>{mindBalanceScore}/100</Text>
-        <Text
-          style={[
-            styles.status,
-            {
-              color:
-                mindBalanceScore >= 70
-                  ? Colors.stable
-                  : Colors.warning,
-            },
-          ]}
-        >
-          {mindBalanceScore >= 70 ? "Stable" : "Needs Attention"}
-        </Text>
+        <Text style={[styles.status, { color: risk.color }]}>{risk.label}</Text>
       </Card>
 
-      {/* Progress Tracker */}
+      {/* Wellness Progress */}
       <Card>
         <Text style={styles.title}>📈 Wellness Progress</Text>
         <Text style={styles.description}>
-          {Math.round(progressMilestone * 100)}% more positive moods compared
-          to last month
+          {Math.round(progressMilestone * 100)}% more positive moods compared to
+          last month
         </Text>
         <ProgressBarCustom progress={progressMilestone} showLabel />
       </Card>
@@ -59,14 +58,13 @@ const DashboardScreen = () => {
           }}
           width={screenWidth}
           height={220}
-          yAxisSuffix=""
           yAxisInterval={1}
           chartConfig={{
             backgroundColor: Colors.card,
             backgroundGradientFrom: Colors.card,
             backgroundGradientTo: Colors.card,
             decimalPlaces: 0,
-            color: (opacity = 1) => Colors.secondary,
+            color: () => Colors.secondary,
             labelColor: () => Colors.textSecondary,
             propsForDots: {
               r: "5",

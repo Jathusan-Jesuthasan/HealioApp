@@ -1,31 +1,39 @@
+// /navigation/AppNavigator.jsx
 import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Colors } from "../utils/Colors";
+
+// Screens
 import DashboardScreen from "../screens/DashboardScreen";
 import MoodLogScreen from "../screens/MoodLogScreen";
-import { Colors } from "../utils/Colors";
-import { Ionicons } from "@expo/vector-icons";
+// Optional: add these when ready
+// import TrendsScreen from "../screens/TrendsScreen";
+// import ReportScreen from "../screens/ReportScreen";
+// import SettingsScreen from "../screens/SettingsScreen";
+
+import BottomBar from "../components/BottomBar";
 
 const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: Colors.secondary,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarStyle: { backgroundColor: Colors.background, height: 60 },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
-          if (route.name === "Dashboard") iconName = "home-outline";
-          else if (route.name === "MoodLog") iconName = "happy-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="MoodLog" component={MoodLogScreen} />
-    </Tab.Navigator>
+    <NavigationContainer>
+      <Tab.Navigator
+        initialRouteName="Dashboard"
+        screenOptions={{
+          headerShown: false,
+        }}
+        // Use custom bottom bar (rounded + center FAB)
+        tabBar={(props) => <BottomBar {...props} />}
+      >
+        <Tab.Screen name="Dashboard" component={DashboardScreen} />
+        <Tab.Screen name="MoodLog" component={MoodLogScreen} />
+        {/* Add these when you create the screens */}
+        {/* <Tab.Screen name="Trends" component={TrendsScreen} /> */}
+        {/* <Tab.Screen name="Reports" component={ReportScreen} /> */}
+        {/* <Tab.Screen name="Settings" component={SettingsScreen} /> */}
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
