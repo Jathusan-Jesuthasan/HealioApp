@@ -4,8 +4,8 @@ import { View, Text, StyleSheet, Image } from "react-native";
 export default function WelcomeScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Safe redirect to Login (must exist in the current stack)
-      navigation.replace("Login");
+      // 👇 Move to Onboarding, not Login
+      navigation.replace("Onboarding");
     }, 2500);
 
     return () => clearTimeout(timer);
@@ -14,7 +14,7 @@ export default function WelcomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Image
-        source={require("../assets/healio_logo.png")} // adjust path if your assets folder differs
+        source={require("../assets/healio_logo.png")} // ✅ ensure correct relative path
         style={styles.logo}
         resizeMode="contain"
       />
@@ -31,8 +31,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 260,
-    height: 160,
+    width: 1000,   // ✅ smaller size for mobile
+    height: 400,
     marginBottom: 16,
   },
   tagline: {
