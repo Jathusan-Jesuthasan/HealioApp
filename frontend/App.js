@@ -43,7 +43,7 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen
-            name="Onboarding"
+            name="Onboarding1"
             component={(props) => (
               <OnboardingScreen1 {...props} setHasOnboarded={setHasOnboarded} />
             )}
