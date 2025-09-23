@@ -4,7 +4,8 @@ import { View, Text, StyleSheet, Image } from "react-native";
 export default function WelcomeScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace("Onboarding");
+      // 👇 Move to Onboarding, not Login
+      navigation.replace("Onboarding1");
     }, 2500);
     return () => clearTimeout(timer);
   }, [navigation]);

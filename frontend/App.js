@@ -1,5 +1,6 @@
 // App.js
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useEffect, useState, memo } from "react";
+import { View, ActivityIndicator, Text } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -7,86 +8,171 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import BottomNavBar from "./components/BottomNavBar";
+import HeaderBar from "./components/HeaderBar";
 
-// Screens
-import OnboardingScreen from "./screens/OnboardingScreen1";
-import LoginScreen from "./screens/LoginScreen";
+// ---- Core screens ----
 import WelcomeScreen from "./screens/WelcomeScreen";
-import MoodLogScreen from "./screens/MoodLogScreen";
+import OnboardingScreen1 from "./screens/OnboardingScreen1";
+import LoginScreen from "./screens/LoginScreen";
+import SignupScreen from "./screens/SignupScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import MoodLogScreen from "./screens/MoodLogScreen"; // keep the real one
 
-// UI
-import BottomBar from "./components/BottomBar";
+// ---- Profile-related pages ----
+import PersonalInfoScreen from "./screens/PersonalInfoScreen";
+import NotificationsScreen from "./screens/NotificationsScreen";
+import LanguageScreen from "./screens/LanguageScreen";
+import ThemeScreen from "./screens/ThemeScreen";
+import InviteFriendsScreen from "./screens/InviteFriendsScreen";
+import TrustedContactsScreen from "./screens/TrustedContactsScreen";
+import EmergencyContactScreen from "./screens/EmergencyContactScreen";
+import YouthDashboardScreen from "./screens/YouthDashboardScreen";
+import SecurityScreen from "./screens/SecurityScreen";
+import HelpCenterScreen from "./screens/HelpCenterScreen";
+import KnowledgeHubScreen from "./screens/KnowledgeHubScreen";
+import MessagesScreen from "./screens/MessagesScreen";
+import LogoutScreen from "./screens/LogoutScreen";
 
+// ---- Simple stubs for other tabs (replace with real pages later) ----
+const Stub = ({ label }) => (
+  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+    <Text>{label}</Text>
+  </View>
+);
+const ChatScreen = () => <Stub label="Chat" />;
+const ActivityScreen = () => <Stub label="Personalized Activity" />;
+
+// ---- Navigators ----
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/* ---------- Tabs after login ---------- */
-function MainTabs() {
+/** Helper HOC to inject the fixed HeaderBar above any screen. */
+const withHeader =
+  (Component, unreadCount = 3) =>
+  (props) =>
+    (
+      <View style={{ flex: 1 }}>
+        <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
+        <Component {...props} />
+      </View>
+    );
+
+/** ------------------- Profile stack (inside Profile tab) ------------------- **/
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ProfileMain">
+      <Stack.Screen name="ProfileMain" component={withHeader(ProfileScreen)} />
+
+      {/* General */}
+      <Stack.Screen name="PersonalInfo" component={withHeader(PersonalInfoScreen)} />
+      <Stack.Screen name="Notifications" component={withHeader(NotificationsScreen)} />
+      <Stack.Screen name="Language" component={withHeader(LanguageScreen)} />
+      <Stack.Screen name="Theme" component={withHeader(ThemeScreen)} />
+      <Stack.Screen name="InviteFriends" component={withHeader(InviteFriendsScreen)} />
+
+      {/* Youth / Trusted */}
+      <Stack.Screen name="TrustedContacts" component={withHeader(TrustedContactsScreen)} />
+      <Stack.Screen name="EmergencyContact" component={withHeader(EmergencyContactScreen)} />
+      <Stack.Screen name="YouthDashboard" component={withHeader(YouthDashboardScreen)} />
+
+      {/* Privacy & Community */}
+      <Stack.Screen name="Security" component={withHeader(SecurityScreen)} />
+      <Stack.Screen name="HelpCenter" component={withHeader(HelpCenterScreen)} />
+      <Stack.Screen name="KnowledgeHub" component={withHeader(KnowledgeHubScreen)} />
+      <Stack.Screen name="Messages" component={withHeader(MessagesScreen)} />
+
+      {/* Account */}
+      <Stack.Screen name="Logout" component={withHeader(LogoutScreen)} />
+    </Stack.Navigator>
+  );
+}
+
+/** ------------------- AppTabs (authenticated) ------------------- **/
+function AppTabs() {
   return (
     <Tab.Navigator
-      initialRouteName="MoodLog"         // MoodLog first after login
+      tabBar={(props) => <BottomNavBar {...props} />}
       screenOptions={{ headerShown: false }}
-      tabBar={(props) => <BottomBar {...props} />}
     >
-      <Tab.Screen name="MoodLog" component={MoodLogScreen} />
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Home" component={withHeader(DashboardScreen)} />
+      <Tab.Screen name="Chat" component={withHeader(ChatScreen)} />
+      <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
+      <Tab.Screen name="Activity" component={withHeader(ActivityScreen)} />
+      {/* Keep tab name "Profile" so navigation.navigate('Profile') switches tabs */}
+      <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
-/* ---------- App (authenticated) ---------- 
-   After login we show Welcome first, then tabs.
-*/
-function AppStack() {
+/** ------------- Non-inline wrapper to avoid React Navigation warning ------------- **/
+const Onboarding1Screen = memo(function Onboarding1Screen(props) {
+  const setter = props?.route?.params?.setHasOnboarded;
+  return <OnboardingScreen1 {...props} setHasOnboarded={setter} />;
+});
+
+/** ------------------- AuthStack (logged out) ------------------- **/
+function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />   {/* landing/choice */}
-      <Stack.Screen name="MainTabs" component={MainTabs} />       {/* MoodLog + Dashboard */}
-      <Stack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ headerShown: true, headerTitle: "Profile" }}
-      />
+    <Stack.Navigator
+      initialRouteName={hasOnboarded ? "Login" : "Welcome"}
+      screenOptions={{ headerShown: false }}
+    >
+      {!hasOnboarded && (
+        <>
+          {/* Usually splash/onboarding don’t need the fixed header */}
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen
+            name="Onboarding1"
+            component={Onboarding1Screen}
+            initialParams={{ setHasOnboarded }}
+          />
+        </>
+      )}
+      {/* If you want the header on auth screens too, wrap with withHeader(...) */}
+      <Stack.Screen name="Login" component={withHeader(LoginScreen, 0)} />
+      <Stack.Screen name="Signup" component={withHeader(SignupScreen, 0)} />
     </Stack.Navigator>
   );
 }
 
-/* ---------- Auth (unauthenticated) ---------- 
-   Only Login here per your flow (onboarding handled by Root).
-*/
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
-      <Stack.Screen name="Login" component={LoginScreen} />
-    </Stack.Navigator>
-  );
-}
-
-/* ---------- Root Navigator (single stack, always start with Welcome) ---------- */
+/** ------------------- RootNavigator ------------------- **/
 function RootNavigator() {
-  const { userToken } = useContext(AuthContext);
+  const { userToken, loading } = useContext(AuthContext);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const checkFlags = async () => {
+      try {
+        const v = await AsyncStorage.getItem("hasOnboarded");
+        setHasOnboarded(!!v);
+      } catch (e) {
+        console.error("Error checking onboarding/token:", e);
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkFlags();
+  }, []);
+
+  if (loading || checking) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer theme={DefaultTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Welcome">
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Signup" component={require('./screens/SignupScreen').default} />
-        <Stack.Screen name="MoodLog" component={MoodLogScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={{ headerShown: true, headerTitle: "Profile" }}
-        />
-      </Stack.Navigator>
+      {userToken ? <AppTabs /> : <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />}
     </NavigationContainer>
   );
 }
 
-/* ---------- App entry ---------- */
+/** ------------------- App (entry) ------------------- **/
 export default function App() {
   return (
     <AuthProvider>
