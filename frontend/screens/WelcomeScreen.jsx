@@ -5,7 +5,7 @@ export default function WelcomeScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       // 👇 Move to Onboarding, not Login
-      navigation.replace("Onboarding");
+      navigation.replace("Onboarding1");
     }, 2500);
 
     return () => clearTimeout(timer);
