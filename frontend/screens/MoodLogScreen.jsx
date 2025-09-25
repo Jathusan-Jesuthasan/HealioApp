@@ -1,5 +1,4 @@
-// /screens/MoodLogScreen.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -31,9 +30,9 @@ const MoodLogScreen = ({ navigation }) => {
     { emoji: "😴", label: "Tired", color: "#10B981" },
   ];
 
-  // Helper to convert hex to rgba with opacity
+  // helper: hex -> rgba
   const hexToRgba = (hex, alpha = 0.12) => {
-    const match = hex.replace('#', '').match(/.{1,2}/g);
+    const match = hex.replace("#", "").match(/.{1,2}/g);
     if (!match || match.length < 3) return hex;
     const [r, g, b] = match.map((x) => parseInt(x, 16));
     return `rgba(${r},${g},${b},${alpha})`;
@@ -56,7 +55,7 @@ const MoodLogScreen = ({ navigation }) => {
     "Health",
   ];
 
-  // Simulated voice recognition
+  // simulated voice -> text
   const simulateSpeechRecognition = () => {
     setIsRecording(true);
     const responses = {
@@ -79,10 +78,9 @@ const MoodLogScreen = ({ navigation }) => {
     }, 2500);
   };
 
-  const startSpeechToText = () => {
-    simulateSpeechRecognition();
-  };
+  const startSpeechToText = () => simulateSpeechRecognition();
 
+  // tiny sentiment guesser
   const analyzeSentiment = (text) => {
     if (!text || text.length < 5) return null;
     const positive = ["happy", "good", "great", "love"];
@@ -139,13 +137,13 @@ const MoodLogScreen = ({ navigation }) => {
       return;
     }
 
+    // TODO: Send to backend (MongoDB) here
     console.log("Mood:", selectedMood);
     console.log("Factors:", selectedFactors);
     console.log("Journal:", journalText);
 
-    // TODO: Save to MongoDB Atlas via backend API
-
-    navigation.replace("Dashboard"); // Go to Dashboard after logging mood
+    // ✅ Go back to Dashboard tab (your AppTabs' "Home")
+    navigation.navigate("Home");
   };
 
   return (
@@ -155,7 +153,7 @@ const MoodLogScreen = ({ navigation }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoid}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={styles.logo}>🩺 Healio</Text>
             <Text style={styles.headerSubtitle}>Mood Journal</Text>
@@ -163,8 +161,10 @@ const MoodLogScreen = ({ navigation }) => {
 
           <View style={styles.card}>
             <Text style={styles.title}>How are you feeling today?</Text>
+
+            {/* moods */}
             <View style={styles.moodContainer}>
-              {moods.map((mood, i) => (
+              {moods.map((mood) => (
                 <TouchableOpacity
                   key={mood.label}
                   style={[
@@ -183,7 +183,7 @@ const MoodLogScreen = ({ navigation }) => {
               ))}
             </View>
 
-            {/* Factors */}
+            {/* factors */}
             <Text style={styles.sectionTitle}>What's affecting your mood?</Text>
             <View style={styles.factorsContainer}>
               {factors.map((factor, i) => (
@@ -207,7 +207,7 @@ const MoodLogScreen = ({ navigation }) => {
               ))}
             </View>
 
-            {/* Journal */}
+            {/* journal */}
             <Text style={styles.sectionTitle}>Write about it</Text>
             <TextInput
               style={styles.journalInput}
@@ -217,15 +217,14 @@ const MoodLogScreen = ({ navigation }) => {
               onChangeText={setJournalText}
             />
 
-            {/* Voice + Suggest */}
+            {/* voice + suggest */}
             <View style={styles.voiceActions}>
               <TouchableOpacity
                 style={[styles.voiceButton, isRecording && styles.voiceButtonActive]}
                 onPress={startSpeechToText}
+                disabled={isRecording}
               >
-                <Text style={styles.voiceButtonIcon}>
-                  {isRecording ? "⏹️" : "🎤"}
-                </Text>
+                <Text style={styles.voiceButtonIcon}>{isRecording ? "⏹️" : "🎤"}</Text>
                 <Text style={styles.voiceButtonText}>
                   {isRecording ? "Recording..." : "Tap to Speak"}
                 </Text>
@@ -246,12 +245,9 @@ const MoodLogScreen = ({ navigation }) => {
               )}
             </View>
 
-            {/* Submit */}
+            {/* submit */}
             <TouchableOpacity
-              style={[
-                styles.submitButton,
-                !selectedMood && styles.submitButtonDisabled,
-              ]}
+              style={[styles.submitButton, !selectedMood && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={!selectedMood}
             >
