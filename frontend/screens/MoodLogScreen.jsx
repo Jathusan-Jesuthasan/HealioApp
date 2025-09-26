@@ -5,14 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Toast from "react-native-toast-message";
 import { Colors } from "../utils/Colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MoodLogScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [moodText, setMoodText] = useState("");
   const [selectedEmoji, setSelectedEmoji] = useState(null);
 
@@ -26,37 +28,35 @@ export default function MoodLogScreen({ navigation }) {
 
   const handleSave = () => {
     if (!selectedEmoji && !moodText.trim()) {
-      Alert.alert("Oops!", "Please select an emoji or enter your mood.");
+      Toast.show({
+        type: "error",
+        text1: "Oops!",
+        text2: "Please select an emoji or enter your mood.",
+      });
       return;
     }
 
-    Alert.alert("Mood Saved ✅", "Your entry has been added to history.");
+    Toast.show({
+      type: "success",
+      text1: "Mood Saved 🌱",
+      text2: "Your entry has been added to history.",
+    });
 
     setSelectedEmoji(null);
     setMoodText("");
 
-    // Replace instead of navigate
-    navigation.replace("MoodHistoryScreen");
-  };
-
-  const handleVoiceInput = () => {
-    Alert.alert("🎙️ Voice Input", "Recording mood... (mock feature)");
-  };
-
-  const handleFaceScan = () => {
-    Alert.alert("📸 Face Scan", "Opening camera... (mock feature)");
+    navigation.navigate("MoodHistory");
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top + 10 }]}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 160 }}
+        contentContainerStyle={{ paddingBottom: 220 }}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>How are you feeling today? 🌱</Text>
 
-        {/* Emoji grid */}
         <View style={styles.emojiGrid}>
           {emojis.map((item, idx) => (
             <TouchableOpacity
@@ -73,7 +73,6 @@ export default function MoodLogScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Chat-style input */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -83,22 +82,48 @@ export default function MoodLogScreen({ navigation }) {
             onChangeText={setMoodText}
             multiline
           />
-          <TouchableOpacity style={styles.micButton} onPress={handleVoiceInput}>
+          <TouchableOpacity
+            style={styles.micButton}
+            onPress={() =>
+              Toast.show({
+                type: "info",
+                text1: "🎙️ Voice Input",
+                text2: "Recording mood... (mock feature)",
+              })
+            }
+          >
             <Ionicons name="mic-outline" size={24} color={Colors.secondary} />
           </TouchableOpacity>
         </View>
 
-        {/* Face scan */}
-        <TouchableOpacity style={styles.faceScan} onPress={handleFaceScan}>
+        <TouchableOpacity
+          style={styles.faceScan}
+          onPress={() =>
+            Toast.show({
+              type: "info",
+              text1: "📸 Face Scan",
+              text2: "Opening camera... (mock feature)",
+            })
+          }
+        >
           <Ionicons name="camera-outline" size={20} color={Colors.secondary} />
           <Text style={styles.faceScanText}> Use Face Scan</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Save button */}
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.btnText}>Save Mood</Text>
-      </TouchableOpacity>
+      <View style={styles.bottomActions}>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <Text style={styles.btnText}>Save Mood</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={() => navigation.navigate("MoodHistory")}
+        >
+          <Ionicons name="time-outline" size={18} color={Colors.secondary} />
+          <Text style={styles.historyText}> View History</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -135,31 +160,27 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 15,
   },
-  input: {
-    flex: 1,
-    minHeight: 50,
-    maxHeight: 120,
-    paddingVertical: 8,
-    color: Colors.textDark,
-  },
-  micButton: { padding: 8, justifyContent: "center", alignItems: "center" },
-  faceScan: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
+  input: { flex: 1, minHeight: 50, maxHeight: 120, paddingVertical: 8, color: Colors.textDark },
+  micButton: { padding: 8 },
+  faceScan: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
   faceScanText: { color: Colors.secondary, fontSize: 16 },
-  button: {
-    position: "absolute",
-    bottom: 90,
-    left: 20,
-    right: 20,
+  bottomActions: { position: "absolute", bottom: 80, left: 20, right: 20 },
+  saveButton: {
     backgroundColor: Colors.accent,
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
-    elevation: 5,
+    marginBottom: 12,
   },
   btnText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  historyButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    elevation: 3,
+  },
+  historyText: { color: Colors.secondary, fontSize: 16, marginLeft: 6 },
 });

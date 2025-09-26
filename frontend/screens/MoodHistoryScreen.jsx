@@ -5,11 +5,15 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../utils/Colors";
 
 export default function MoodHistoryScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   const [moods] = useState([
     { id: "1", emoji: "😊", note: "Had a good workout", date: "2025-09-24" },
     { id: "2", emoji: "😔", note: "Felt tired after class", date: "2025-09-23" },
@@ -18,66 +22,66 @@ export default function MoodHistoryScreen({ navigation }) {
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.item}
-      onPress={() => navigation.navigate("MoodDetailScreen", { mood: item })}
+      style={styles.card}
+      onPress={() => navigation.navigate("MoodDetail", { mood: item })}
     >
-      <Text style={styles.emoji}>{item.emoji}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.note} numberOfLines={1}>{item.note}</Text>
+      <View style={styles.emojiWrapper}>
+        <Text style={styles.emoji}>{item.emoji}</Text>
+      </View>
+
+      <View style={styles.textWrapper}>
+        <Text style={styles.note} numberOfLines={1}>
+          {item.note}
+        </Text>
         <Text style={styles.date}>{item.date}</Text>
       </View>
+
       <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header with back */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.secondary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Mood History</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <Text style={styles.title}>Your Mood History</Text>
       <FlatList
         data={moods}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primary },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.textLight,
-    backgroundColor: "#fff",
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
+  container: { flex: 1, backgroundColor: Colors.primary, paddingHorizontal: 16 },
+  title: {
+    fontSize: 20,
     fontWeight: "600",
+    marginBottom: 16,
     textAlign: "center",
     color: Colors.secondary,
   },
-  item: {
+  card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    margin: 12,
-    elevation: 2,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    elevation: 3,
   },
-  emoji: { fontSize: 28, marginRight: 12 },
-  note: { fontSize: 16, color: Colors.textDark },
-  date: { fontSize: 12, color: Colors.textLight },
+  emojiWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  emoji: { fontSize: 26 },
+  textWrapper: { flex: 1 },
+  note: { fontSize: 16, fontWeight: "500", color: Colors.textDark },
+  date: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
 });

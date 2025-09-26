@@ -6,6 +6,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Toast from "react-native-toast-message";
 
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import BottomNavBar from "./components/BottomNavBar";
@@ -18,9 +19,13 @@ import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import MoodLogScreen from "./screens/MoodLogScreen"; // keep the real one
 
-// ---- Profile-related pages ----
+// ---- Mood flow ----
+import MoodLogScreen from "./screens/MoodLogScreen";
+import MoodHistoryScreen from "./screens/MoodHistoryScreen";
+import MoodDetailScreen from "./screens/MoodDetailScreen";
+
+// ---- Profile-related ----
 import PersonalInfoScreen from "./screens/PersonalInfoScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import LanguageScreen from "./screens/LanguageScreen";
@@ -35,7 +40,7 @@ import KnowledgeHubScreen from "./screens/KnowledgeHubScreen";
 import MessagesScreen from "./screens/MessagesScreen";
 import LogoutScreen from "./screens/LogoutScreen";
 
-// ---- Simple stubs for other tabs (replace with real pages later) ----
+// ---- Stubs ----
 const Stub = ({ label }) => (
   <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
     <Text>{label}</Text>
@@ -48,7 +53,6 @@ const ActivityScreen = () => <Stub label="Personalized Activity" />;
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/** Helper HOC to inject the fixed HeaderBar above any screen. */
 const withHeader =
   (Component, unreadCount = 3) =>
   (props) =>
@@ -59,37 +63,29 @@ const withHeader =
       </View>
     );
 
-/** ------------------- Profile stack (inside Profile tab) ------------------- **/
+// ---------------- Profile Stack ----------------
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ProfileMain">
       <Stack.Screen name="ProfileMain" component={withHeader(ProfileScreen)} />
-
-      {/* General */}
       <Stack.Screen name="PersonalInfo" component={withHeader(PersonalInfoScreen)} />
       <Stack.Screen name="Notifications" component={withHeader(NotificationsScreen)} />
       <Stack.Screen name="Language" component={withHeader(LanguageScreen)} />
       <Stack.Screen name="Theme" component={withHeader(ThemeScreen)} />
       <Stack.Screen name="InviteFriends" component={withHeader(InviteFriendsScreen)} />
-
-      {/* Youth / Trusted */}
       <Stack.Screen name="TrustedContacts" component={withHeader(TrustedContactsScreen)} />
       <Stack.Screen name="EmergencyContact" component={withHeader(EmergencyContactScreen)} />
       <Stack.Screen name="YouthDashboard" component={withHeader(YouthDashboardScreen)} />
-
-      {/* Privacy & Community */}
       <Stack.Screen name="Security" component={withHeader(SecurityScreen)} />
       <Stack.Screen name="HelpCenter" component={withHeader(HelpCenterScreen)} />
       <Stack.Screen name="KnowledgeHub" component={withHeader(KnowledgeHubScreen)} />
       <Stack.Screen name="Messages" component={withHeader(MessagesScreen)} />
-
-      {/* Account */}
       <Stack.Screen name="Logout" component={withHeader(LogoutScreen)} />
     </Stack.Navigator>
   );
 }
 
-/** ------------------- AppTabs (authenticated) ------------------- **/
+// ---------------- Main App Tabs ----------------
 function AppTabs() {
   return (
     <Tab.Navigator
@@ -98,21 +94,24 @@ function AppTabs() {
     >
       <Tab.Screen name="Home" component={withHeader(DashboardScreen)} />
       <Tab.Screen name="Chat" component={withHeader(ChatScreen)} />
+
+      {/* ✅ Mood Flow */}
       <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
+      <Tab.Screen name="MoodHistory" component={withHeader(MoodHistoryScreen)} />
+
       <Tab.Screen name="Activity" component={withHeader(ActivityScreen)} />
-      {/* Keep tab name "Profile" so navigation.navigate('Profile') switches tabs */}
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
-/** ------------- Non-inline wrapper to avoid React Navigation warning ------------- **/
+// ---------------- Onboarding ----------------
 const Onboarding1Screen = memo(function Onboarding1Screen(props) {
   const setter = props?.route?.params?.setHasOnboarded;
   return <OnboardingScreen1 {...props} setHasOnboarded={setter} />;
 });
 
-/** ------------------- AuthStack (logged out) ------------------- **/
+// ---------------- Auth Stack ----------------
 function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
@@ -121,7 +120,6 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
     >
       {!hasOnboarded && (
         <>
-          {/* Usually splash/onboarding don’t need the fixed header */}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen
             name="Onboarding1"
@@ -130,14 +128,13 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
           />
         </>
       )}
-      {/* If you want the header on auth screens too, wrap with withHeader(...) */}
       <Stack.Screen name="Login" component={withHeader(LoginScreen, 0)} />
       <Stack.Screen name="Signup" component={withHeader(SignupScreen, 0)} />
     </Stack.Navigator>
   );
 }
 
-/** ------------------- RootNavigator ------------------- **/
+// ---------------- Root Navigator ----------------
 function RootNavigator() {
   const { userToken, loading } = useContext(AuthContext);
   const [hasOnboarded, setHasOnboarded] = useState(false);
@@ -167,12 +164,21 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={DefaultTheme}>
-      {userToken ? <AppTabs /> : <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />}
+      {userToken ? (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="AppTabs" component={AppTabs} />
+          {/* ✅ Mood Detail only accessible from history */}
+          <Stack.Screen name="MoodDetail" component={MoodDetailScreen} />
+        </Stack.Navigator>
+      ) : (
+        <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />
+      )}
+      <Toast position="bottom" bottomOffset={100} />
     </NavigationContainer>
   );
 }
 
-/** ------------------- App (entry) ------------------- **/
+// ---------------- App Entry ----------------
 export default function App() {
   return (
     <AuthProvider>
