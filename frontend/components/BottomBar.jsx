@@ -1,30 +1,23 @@
-// /components/BottomBar.jsx
 import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../utils/Colors";
 
-/**
- * Rounded bottom bar with a floating '+' centered FAB.
- * Left: first 2 routes, Right: remaining routes, FAB → "MoodLog".
- */
 export default function BottomBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 10);
 
   const navActive = Colors.navActive ?? Colors.secondary;
-  const navIcon = Colors.navIcon ?? Colors.textSecondary;
-  const navBg = Colors.navBackground ?? Colors.card;
+  const navIcon = Colors.navIcon ?? Colors.textLight;
+  const navBg = Colors.navBackground ?? "#fff";
 
   const iconFor = (name) => {
     switch (name) {
       case "Dashboard": return "home-outline";
-      case "MoodLog":  return "happy-outline";
-      case "Trends":   return "analytics-outline";
-      case "Reports":  return "document-text-outline";
-      case "Settings": return "settings-outline";
-      default:         return "ellipse-outline";
+      case "Messages":  return "chatbubble-ellipses-outline";
+      case "Profile":   return "person-outline";
+      default:          return "ellipse-outline";
     }
   };
 
@@ -46,24 +39,15 @@ export default function BottomBar({ state, descriptors, navigation }) {
     });
   };
 
-  // helper to render a single tab icon
   const TabIcon = ({ route, index }) => {
     const { options } = descriptors[route.key];
-    const label = options.tabBarLabel ?? options.title ?? route.name;
     const isFocused = state.index === index;
-
     return (
       <TouchableOpacity
         key={route.key}
-        accessibilityRole="button"
-        accessibilityState={isFocused ? { selected: true } : {}}
-        accessibilityLabel={options.tabBarAccessibilityLabel}
-        testID={options.tabBarTestID}
         onPress={onTabPress(route.name, route.key, isFocused)}
         onLongPress={onTabLongPress(route.key)}
         style={styles.tab}
-        activeOpacity={0.9}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Ionicons
           name={iconFor(route.name)}
@@ -77,25 +61,22 @@ export default function BottomBar({ state, descriptors, navigation }) {
   return (
     <View style={[styles.wrapper, { paddingBottom: bottomInset }]}>
       <View style={[styles.bar, { backgroundColor: navBg }]}>
-        {/* Left slots (first 2 routes) */}
+        {/* Left icons */}
         {state.routes.slice(0, 2).map((route, idx) => (
           <TabIcon key={route.key} route={route} index={idx} />
         ))}
 
-        {/* Floating center '+' */}
+        {/* Floating FAB → opens MoodLogScreen */}
         <TouchableOpacity
-          onPress={() => navigation.navigate("MoodLog")}
+          onPress={() => navigation.navigate("MoodLogScreen")}
           style={styles.fab}
-          activeOpacity={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Add mood"
         >
-          <Ionicons name="add" size={26} color="#fff" />
+          <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
 
-        {/* Right slots (remaining routes) */}
+        {/* Right icons */}
         {state.routes.slice(2).map((route, i) => {
-          const actualIndex = i + 2; // because we sliced after 2
+          const actualIndex = i + 2;
           return <TabIcon key={route.key} route={route} index={actualIndex} />;
         })}
       </View>
@@ -117,8 +98,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-
-    // subtle shadow
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -139,10 +118,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.accent, // green CTA
+    backgroundColor: Colors.accent,
     alignItems: "center",
     justifyContent: "center",
-
     shadowColor: "#000",
     shadowOpacity: 0.15,
     shadowRadius: 12,
