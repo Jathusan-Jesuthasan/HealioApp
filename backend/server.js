@@ -3,42 +3,59 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
 
+// Routes
+import authRoutes from "./routes/authRoutes.js";
+import moodLogRoutes from "./routes/moodLogRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+
+// ----------------- Load env first -----------------
 dotenv.config();
+
+// ----------------- Init App -----------------
 const app = express();
 
-// Connect DB (Atlas)
-await connectDB();
+// ----------------- Connect DB -----------------
+try {
+  await connectDB();
+  console.log("✅ MongoDB Connected");
+} catch (err) {
+  console.error("❌ MongoDB connection failed:", err);
+  process.exit(1);
+}
 
-// Parse JSON/form bodies
+// ----------------- Middleware -----------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS: allow all during development (works for emulator + physical device)
+// Allow all origins during dev (restrict in production)
 app.use(
   cors({
-    origin: "*", // lock down in production
+    origin: "*",
   })
 );
 
-// Health & root checks
-app.get("/", (req, res) => res.send("Healio API is running"));
+// ----------------- Health & Root -----------------
+app.get("/", (req, res) => res.send("✅ Healio API is running"));
 app.get("/health", (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
 );
 
-// Routes
+// ----------------- API Routes -----------------
 app.use("/api/auth", authRoutes);
+app.use("/api/moodlogs", moodLogRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
-// Global error fallback
+// ----------------- Global Error Handler -----------------
 app.use((err, req, res, next) => {
-  console.error("Unhandled Error:", err);
+  console.error("🔥 Unhandled Error:", err);
   res.status(500).json({ message: "Server error" });
 });
 
+// ----------------- Start Server -----------------
 const PORT = process.env.PORT || 5000;
-// 0.0.0.0 lets Android emulator & phones on the same Wi-Fi reach your PC
 app.listen(PORT, "0.0.0.0", () =>
-  console.log(`✅ Server running on http://localhost:${PORT}`)
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
 );
