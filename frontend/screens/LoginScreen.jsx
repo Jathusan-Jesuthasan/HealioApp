@@ -39,7 +39,7 @@ export default function LoginScreen({ navigation }) {
       });
       await signIn(data.token); // saved to AsyncStorage via context
       Alert.alert('Success', 'Login Successful!');
-      navigation.replace('MoodLog'); // Go to MoodLogScreen after login
+      // Navigation is handled automatically by AuthContext when userToken is set
     } catch (error) {
       const msg = error?.response?.data?.message || error?.message || 'Something went wrong';
       console.error('Login error:', msg);
