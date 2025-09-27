@@ -1,7 +1,8 @@
-//backend/middleware/authMiddleware.js
+// backend/middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   let token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
@@ -10,9 +11,10 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.id;
+    req.user = decoded.id; // 👈 just store userId
     next();
   } catch (error) {
+    console.error("JWT error:", error);
     res.status(401).json({ message: "Token failed" });
   }
 };
