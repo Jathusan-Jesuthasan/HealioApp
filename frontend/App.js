@@ -18,7 +18,7 @@ import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import MoodLogScreen from "./screens/MoodLogScreen"; // keep the real one
+import MoodLogScreen from "./screens/MoodLogScreen";
 
 // ---- Profile-related pages ----
 import PersonalInfoScreen from "./screens/PersonalInfoScreen";
@@ -35,7 +35,10 @@ import KnowledgeHubScreen from "./screens/KnowledgeHubScreen";
 import MessagesScreen from "./screens/MessagesScreen";
 import LogoutScreen from "./screens/LogoutScreen";
 
-// ---- Simple stubs for other tabs (replace with real pages later) ----
+// ---- New Feature: AI Risk Detection ----
+import RiskDetailScreen from "./screens/RiskDetailScreen";
+
+// ---- Simple stubs for other tabs ----
 const Stub = ({ label }) => (
   <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
     <Text>{label}</Text>
@@ -48,7 +51,7 @@ const ActivityScreen = () => <Stub label="Personalized Activity" />;
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/** Helper HOC to inject the fixed HeaderBar above any screen. */
+/** Helper HOC to inject HeaderBar above any screen */
 const withHeader =
   (Component, unreadCount = 3) =>
   (props) =>
@@ -59,10 +62,13 @@ const withHeader =
       </View>
     );
 
-/** ------------------- Profile stack (inside Profile tab) ------------------- **/
+/** ------------------- Profile stack ------------------- **/
 function ProfileStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ProfileMain">
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="ProfileMain"
+    >
       <Stack.Screen name="ProfileMain" component={withHeader(ProfileScreen)} />
 
       {/* General */}
@@ -89,7 +95,7 @@ function ProfileStack() {
   );
 }
 
-/** ------------------- AppTabs (authenticated) ------------------- **/
+/** ------------------- Tabs (authenticated) ------------------- **/
 function AppTabs() {
   return (
     <Tab.Navigator
@@ -100,13 +106,12 @@ function AppTabs() {
       <Tab.Screen name="Chat" component={withHeader(ChatScreen)} />
       <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
       <Tab.Screen name="Activity" component={withHeader(ActivityScreen)} />
-      {/* Keep tab name "Profile" so navigation.navigate('Profile') switches tabs */}
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
-/** ------------- Non-inline wrapper to avoid React Navigation warning ------------- **/
+/** ------------------- Onboarding wrapper ------------------- **/
 const Onboarding1Screen = memo(function Onboarding1Screen(props) {
   const setter = props?.route?.params?.setHasOnboarded;
   return <OnboardingScreen1 {...props} setHasOnboarded={setter} />;
@@ -121,7 +126,6 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
     >
       {!hasOnboarded && (
         <>
-          {/* Usually splash/onboarding don’t need the fixed header */}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen
             name="Onboarding1"
@@ -130,7 +134,6 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
           />
         </>
       )}
-      {/* If you want the header on auth screens too, wrap with withHeader(...) */}
       <Stack.Screen name="Login" component={withHeader(LoginScreen, 0)} />
       <Stack.Screen name="Signup" component={withHeader(SignupScreen, 0)} />
     </Stack.Navigator>
@@ -167,7 +170,29 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={DefaultTheme}>
-      {userToken ? <AppTabs /> : <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {userToken ? (
+          <>
+            {/* Tabs with bottom nav */}
+            <Stack.Screen name="AppTabs" component={AppTabs} />
+
+            {/* Risk Detection Details (navigated from Dashboard) */}
+            <Stack.Screen
+              name="RiskDetail"
+              component={withHeader(RiskDetailScreen)}
+            />
+          </>
+        ) : (
+          <Stack.Screen name="AuthStack">
+            {() => (
+              <AuthStack
+                hasOnboarded={hasOnboarded}
+                setHasOnboarded={setHasOnboarded}
+              />
+            )}
+          </Stack.Screen>
+        )}
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }
