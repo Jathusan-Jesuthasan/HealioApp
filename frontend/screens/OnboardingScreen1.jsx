@@ -1,5 +1,5 @@
 // frontend/screens/OnboardingScreen.js
-import React, { useRef, useState } from "react";
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,33 +9,33 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-} from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 
 // 👉 Replace these with your actual images in assets/
 const SLIDES = [
   {
-    id: "1",
-    title: "Log Your Daily\nMood",
+    id: '1',
+    title: 'Log Your Daily\nMood',
     description:
-      "Quickly record how you feel using emojis, sliders, or short notes. Build a clear picture of your emotional journey.",
-    image: require("../assets/healio_onboard_mood.png"),
+      'Quickly record how you feel using emojis, sliders, or short notes. Build a clear picture of your emotional journey.',
+    image: require('../assets/healio_onboard_mood.png'),
   },
   {
-    id: "2",
-    title: "Track Progress\n& Insights",
+    id: '2',
+    title: 'Track Progress\n& Insights',
     description:
-      "See weekly and monthly trends, personalized insights, and helpful tips to stay balanced.",
-    image: require("../assets/healio_onboard_insights.png"),
+      'See weekly and monthly trends, personalized insights, and helpful tips to stay balanced.',
+    image: require('../assets/healio_onboard_insights.png'),
   },
   {
-    id: "3",
-    title: "Get Support\nWhen You Need",
+    id: '3',
+    title: 'Get Support\nWhen You Need',
     description:
-      "Connect with trusted contacts and access coping activities tailored to your needs.",
-    image: require("../assets/healio_onboard_support.png"),
+      'Connect with trusted contacts and access coping activities tailored to your needs.',
+    image: require('../assets/healio_onboard_support.png'),
   },
 ];
 
@@ -48,12 +48,12 @@ export default function OnboardingScreen({ navigation, route }) {
 
   const finishOnboarding = async () => {
     try {
-      await AsyncStorage.setItem("hasOnboarded", "1");
+      await AsyncStorage.setItem('hasOnboarded', '1');
       if (setHasOnboarded) setHasOnboarded(true);
-      navigation.replace("Login");
+      navigation.replace('Login');
     } catch (e) {
-      console.error("Error saving onboarding flag:", e);
-      navigation.replace("Login"); // fallback
+      console.error('Error saving onboarding flag:', e);
+      navigation.replace('Login'); // fallback
     }
   };
 
@@ -117,28 +117,23 @@ export default function OnboardingScreen({ navigation, route }) {
           {SLIDES.map((_, i) => (
             <View
               key={i}
-              style={[
-                styles.dot,
-                i === index ? styles.dotActive : styles.dotInactive,
-              ]}
+              style={[styles.dot, i === index ? styles.dotActive : styles.dotInactive]}
             />
           ))}
         </View>
 
         <TouchableOpacity onPress={handleNext} style={styles.nextBtn}>
-          <Text style={styles.nextText}>
-            {index === SLIDES.length - 1 ? "Start" : "Next"}
-          </Text>
+          <Text style={styles.nextText}>{index === SLIDES.length - 1 ? 'Start' : 'Next'}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const BLUE = "#377DFF";
-const TEXT = "#111827";
-const SUB = "#6B7280";
-const BG = "#F7F9FF";
+const BLUE = '#377DFF';
+const TEXT = '#111827';
+const SUB = '#6B7280';
+const BG = '#F7F9FF';
 
 const styles = StyleSheet.create({
   container: {
@@ -148,22 +143,22 @@ const styles = StyleSheet.create({
   topBar: {
     paddingTop: 12,
     paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   counter: {
     color: TEXT,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   skip: {
     color: TEXT,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   slide: {
     width,
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 8,
   },
@@ -175,15 +170,15 @@ const styles = StyleSheet.create({
   title: {
     marginTop: 8,
     fontSize: 32,
-    textAlign: "center",
+    textAlign: 'center',
     color: BLUE,
-    fontWeight: "800",
+    fontWeight: '800',
     lineHeight: 38,
   },
   desc: {
     marginTop: 16,
     fontSize: 16,
-    textAlign: "center",
+    textAlign: 'center',
     color: SUB,
     lineHeight: 22,
     paddingHorizontal: 8,
@@ -191,14 +186,14 @@ const styles = StyleSheet.create({
   bottomBar: {
     paddingHorizontal: 24,
     paddingVertical: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   dots: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   dot: {
     width: 10,
@@ -210,12 +205,12 @@ const styles = StyleSheet.create({
     width: 28,
   },
   dotInactive: {
-    backgroundColor: "#D1D5DB",
+    backgroundColor: '#D1D5DB',
   },
   nextBtn: {},
   nextText: {
     color: BLUE,
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
   },
 });

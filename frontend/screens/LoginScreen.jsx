@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,46 +8,42 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
-} from "react-native";
-import { AntDesign, FontAwesome } from "@expo/vector-icons";
-import api from "../config/api";
-import { AuthContext } from "../context/AuthContext";
+} from 'react-native';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
+import api from '../config/api';
+import { AuthContext } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useContext(AuthContext);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isValidEmail = (val) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val).toLowerCase());
+  const isValidEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val).toLowerCase());
 
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !password) {
-      return Alert.alert("Error", "Please enter email and password");
+      return Alert.alert('Error', 'Please enter email and password');
     }
     if (!isValidEmail(trimmedEmail)) {
-      return Alert.alert("Invalid Email", "Please enter a valid email address");
+      return Alert.alert('Invalid Email', 'Please enter a valid email address');
     }
 
     try {
       setLoading(true);
-      const { data } = await api.post("/api/auth/login", {
+      const { data } = await api.post('/api/auth/login', {
         email: trimmedEmail,
         password,
       });
-    await signIn(data.token); // saved to AsyncStorage via context
-    Alert.alert("Success", "Login Successful!");
-    navigation.replace("MoodLog"); // Go to MoodLogScreen after login
+      await signIn(data.token); // saved to AsyncStorage via context
+      Alert.alert('Success', 'Login Successful!');
+      navigation.replace('MoodLog'); // Go to MoodLogScreen after login
     } catch (error) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Something went wrong";
-      console.error("Login error:", msg);
-      Alert.alert("Login Failed", msg);
+      const msg = error?.response?.data?.message || error?.message || 'Something went wrong';
+      console.error('Login error:', msg);
+      Alert.alert('Login Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -56,24 +52,18 @@ export default function LoginScreen({ navigation }) {
   const handleForgot = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      return Alert.alert("Enter Email", "Please type your email first.");
+      return Alert.alert('Enter Email', 'Please type your email first.');
     }
     if (!isValidEmail(trimmedEmail)) {
-      return Alert.alert("Invalid Email", "Please enter a valid email address");
+      return Alert.alert('Invalid Email', 'Please enter a valid email address');
     }
     try {
       setLoading(true);
-      await api.post("/api/auth/forgot-password", { email: trimmedEmail });
-      Alert.alert(
-        "Check Your Inbox",
-        "If that email exists, a reset link has been sent."
-      );
+      await api.post('/api/auth/forgot-password', { email: trimmedEmail });
+      Alert.alert('Check Your Inbox', 'If that email exists, a reset link has been sent.');
     } catch (error) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Could not send reset link";
-      Alert.alert("Error", msg);
+      const msg = error?.response?.data?.message || error?.message || 'Could not send reset link';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
@@ -82,10 +72,8 @@ export default function LoginScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Log in to continue{"\n"}your journey</Text>
-        <Text style={styles.subtitle}>
-          Welcome back ! Your healing journey continues.
-        </Text>
+        <Text style={styles.title}>Log in to continue{'\n'}your journey</Text>
+        <Text style={styles.subtitle}>Welcome back ! Your healing journey continues.</Text>
       </View>
 
       <View style={styles.form}>
@@ -116,12 +104,11 @@ export default function LoginScreen({ navigation }) {
         <TouchableOpacity
           style={[styles.signInButton, { opacity: loading ? 0.7 : 1 }]}
           onPress={handleSignIn}
-          disabled={loading}
-        >
+          disabled={loading}>
           {loading ? <ActivityIndicator /> : <Text style={styles.signInText}>Sign in</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
           <Text style={styles.createAccount}>Create new account</Text>
         </TouchableOpacity>
 
@@ -144,40 +131,40 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9fbff", padding: 20, justifyContent: "center" },
-  header: { marginBottom: 40, alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "700", color: "#4682e9", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#333", marginTop: 10, textAlign: "center" },
-  form: { width: "100%" },
+  container: { flex: 1, backgroundColor: '#f9fbff', padding: 20, justifyContent: 'center' },
+  header: { marginBottom: 40, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '700', color: '#4682e9', textAlign: 'center' },
+  subtitle: { fontSize: 14, color: '#333', marginTop: 10, textAlign: 'center' },
+  form: { width: '100%' },
   input: {
     borderWidth: 1,
-    borderColor: "#34c759",
+    borderColor: '#34c759',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
-  forgotText: { color: "#2a60d4", fontSize: 14, alignSelf: "flex-end", marginBottom: 20 },
+  forgotText: { color: '#2a60d4', fontSize: 14, alignSelf: 'flex-end', marginBottom: 20 },
   signInButton: {
-    backgroundColor: "#34c759",
+    backgroundColor: '#34c759',
     padding: 15,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 15,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5,
   },
-  signInText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  createAccount: { fontSize: 14, color: "#333", textAlign: "center", marginBottom: 20 },
-  orText: { textAlign: "center", color: "#4682e9", fontWeight: "500", marginBottom: 15 },
-  socialContainer: { flexDirection: "row", justifyContent: "center", gap: 20 },
+  signInText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  createAccount: { fontSize: 14, color: '#333', textAlign: 'center', marginBottom: 20 },
+  orText: { textAlign: 'center', color: '#4682e9', fontWeight: '500', marginBottom: 15 },
+  socialContainer: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
   socialButton: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#ddd",
-    alignItems: "center",
+    borderColor: '#ddd',
+    alignItems: 'center',
   },
 });
