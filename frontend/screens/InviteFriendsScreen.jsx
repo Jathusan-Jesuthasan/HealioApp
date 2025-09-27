@@ -1,10 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Share } from "react-native";
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 
 export default function InviteFriendsScreen() {
   const invite = async () => {
     await Share.share({
-      message: "Join me on Healio! Download the app: https://example.com/app",
+      message: 'Join me on Healio! Download the app: https://example.com/app',
     });
   };
   return (
@@ -18,9 +18,9 @@ export default function InviteFriendsScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#F5F7FB" },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 8 },
-  sub: { color: "#6B7280", marginBottom: 12 },
-  btn: { backgroundColor: "#377DFF", padding: 14, borderRadius: 12 },
-  btnText: { color: "#fff", textAlign: "center", fontWeight: "700" },
+  container: { flex: 1, padding: 16, backgroundColor: '#F5F7FB' },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  sub: { color: '#6B7280', marginBottom: 12 },
+  btn: { backgroundColor: '#377DFF', padding: 14, borderRadius: 12 },
+  btnText: { color: '#fff', textAlign: 'center', fontWeight: '700' },
 });
