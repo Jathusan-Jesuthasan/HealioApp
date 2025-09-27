@@ -1,20 +1,8 @@
-import React from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-} from "react-native";
-import { Colors } from "../utils/Colors";
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { Colors } from '../utils/Colors';
 
-const Card = ({
-  children,
-  style,
-  onPress,
-  elevation = 3,
-  borderRadius = 12,
-  padding = 16,
-}) => {
+const Card = ({ children, style, onPress, elevation = 3, borderRadius = 12, padding = 16 }) => {
   const CardWrapper = onPress ? TouchableOpacity : View;
 
   return (
@@ -26,9 +14,9 @@ const Card = ({
           borderRadius,
           padding,
         },
-        Platform.OS === "ios"
+        Platform.OS === 'ios'
           ? {
-              shadowColor: "#000",
+              shadowColor: '#000',
               shadowOpacity: 0.15,
               shadowRadius: elevation * 2,
               shadowOffset: { width: 0, height: elevation },
@@ -37,8 +25,7 @@ const Card = ({
         style, // allow custom styles
       ]}
       onPress={onPress}
-      activeOpacity={0.85}
-    >
+      activeOpacity={0.85}>
       {children}
     </CardWrapper>
   );
