@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native";
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 
 export default function EmergencyContactScreen() {
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState('');
 
   const save = () => {
     // TODO: save with user profile
-    Alert.alert("Saved", "Emergency contact updated.");
+    Alert.alert('Saved', 'Emergency contact updated.');
   };
 
   return (
@@ -26,14 +26,16 @@ export default function EmergencyContactScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#F5F7FB" },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 12 },
+  container: { flex: 1, padding: 16, backgroundColor: '#F5F7FB' },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 12 },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderRadius: 12,
-    borderWidth: 1, borderColor: "#E5E7EB",
-    padding: 12, marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 10,
   },
-  btn: { backgroundColor: "#377DFF", padding: 14, borderRadius: 12 },
-  btnText: { color: "#fff", textAlign: "center", fontWeight: "700" },
+  btn: { backgroundColor: '#377DFF', padding: 14, borderRadius: 12 },
+  btnText: { color: '#fff', textAlign: 'center', fontWeight: '700' },
 });
