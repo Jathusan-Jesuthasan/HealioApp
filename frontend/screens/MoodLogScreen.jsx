@@ -1,5 +1,5 @@
 // /screens/MoodLogScreen.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Colors } from "../utils/Colors";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MoodLogScreen = ({ navigation }) => {
   const [selectedMood, setSelectedMood] = useState(null);
@@ -22,6 +24,7 @@ const MoodLogScreen = ({ navigation }) => {
   const [journalText, setJournalText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const moods = [
     { emoji: "😊", label: "Happy", color: "#F59E0B" },
@@ -31,9 +34,9 @@ const MoodLogScreen = ({ navigation }) => {
     { emoji: "😴", label: "Tired", color: "#10B981" },
   ];
 
-  // Helper to convert hex to rgba with opacity
+  // Helper: convert hex color to rgba with opacity
   const hexToRgba = (hex, alpha = 0.12) => {
-    const match = hex.replace('#', '').match(/.{1,2}/g);
+    const match = hex.replace("#", "").match(/.{1,2}/g);
     if (!match || match.length < 3) return hex;
     const [r, g, b] = match.map((x) => parseInt(x, 16));
     return `rgba(${r},${g},${b},${alpha})`;
@@ -56,7 +59,7 @@ const MoodLogScreen = ({ navigation }) => {
     "Health",
   ];
 
-  // Simulated voice recognition
+  // Fake speech-to-text simulation
   const simulateSpeechRecognition = () => {
     setIsRecording(true);
     const responses = {
@@ -66,7 +69,6 @@ const MoodLogScreen = ({ navigation }) => {
       Angry: "I got frustrated with some situations at work.",
       Tired: "I felt very drained and needed rest.",
     };
-
     const response =
       selectedMood && responses[selectedMood.label]
         ? responses[selectedMood.label]
@@ -79,10 +81,9 @@ const MoodLogScreen = ({ navigation }) => {
     }, 2500);
   };
 
-  const startSpeechToText = () => {
-    simulateSpeechRecognition();
-  };
+  const startSpeechToText = () => simulateSpeechRecognition();
 
+  // Basic sentiment analysis
   const analyzeSentiment = (text) => {
     if (!text || text.length < 5) return null;
     const positive = ["happy", "good", "great", "love"];
@@ -109,7 +110,6 @@ const MoodLogScreen = ({ navigation }) => {
     if (!journalText) return;
     setIsProcessing(true);
     await new Promise((res) => setTimeout(res, 1000));
-
     const sentiment = analyzeSentiment(journalText);
     switch (sentiment) {
       case "positive":
@@ -133,19 +133,50 @@ const MoodLogScreen = ({ navigation }) => {
     );
   };
 
-  const handleSubmit = () => {
+  // ✅ Save mood log to backend
+  const handleSubmit = async () => {
     if (!selectedMood) {
       Alert.alert("Select Mood", "Please choose your mood before submitting.");
       return;
     }
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Auth Error", "You are not logged in.");
+        return;
+      }
 
-    console.log("Mood:", selectedMood);
-    console.log("Factors:", selectedFactors);
-    console.log("Journal:", journalText);
+      const baseURL =
+        Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
 
-    // TODO: Save to MongoDB Atlas via backend API
+      const res = await axios.post(
+        `${baseURL}/api/moodlogs`,
+        {
+          mood: selectedMood.label,
+          factors: selectedFactors,
+          journal: journalText,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    navigation.replace("Dashboard"); // Go to Dashboard after logging mood
+      console.log("✅ Mood log saved:", res.data);
+      Alert.alert("Success", "Mood log saved successfully!");
+      navigation.navigate("Home"); // go back to dashboard
+    } catch (error) {
+      console.error(
+        "❌ Error saving mood:",
+        error.response?.data || error.message
+      );
+      Alert.alert("Error", error.response?.data?.message || "Failed to save mood log.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -164,7 +195,7 @@ const MoodLogScreen = ({ navigation }) => {
           <View style={styles.card}>
             <Text style={styles.title}>How are you feeling today?</Text>
             <View style={styles.moodContainer}>
-              {moods.map((mood, i) => (
+              {moods.map((mood) => (
                 <TouchableOpacity
                   key={mood.label}
                   style={[
@@ -183,7 +214,6 @@ const MoodLogScreen = ({ navigation }) => {
               ))}
             </View>
 
-            {/* Factors */}
             <Text style={styles.sectionTitle}>What's affecting your mood?</Text>
             <View style={styles.factorsContainer}>
               {factors.map((factor, i) => (
@@ -207,7 +237,6 @@ const MoodLogScreen = ({ navigation }) => {
               ))}
             </View>
 
-            {/* Journal */}
             <Text style={styles.sectionTitle}>Write about it</Text>
             <TextInput
               style={styles.journalInput}
@@ -217,7 +246,6 @@ const MoodLogScreen = ({ navigation }) => {
               onChangeText={setJournalText}
             />
 
-            {/* Voice + Suggest */}
             <View style={styles.voiceActions}>
               <TouchableOpacity
                 style={[styles.voiceButton, isRecording && styles.voiceButtonActive]}
@@ -246,17 +274,16 @@ const MoodLogScreen = ({ navigation }) => {
               )}
             </View>
 
-            {/* Submit */}
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                !selectedMood && styles.submitButtonDisabled,
+                (!selectedMood || loading) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={!selectedMood}
+              disabled={!selectedMood || loading}
             >
               <Text style={styles.submitButtonText}>
-                {selectedMood ? "Log Mood & Continue" : "Select a Mood"}
+                {loading ? "Saving..." : "Log Mood & Continue"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -281,7 +308,12 @@ const styles = StyleSheet.create({
     padding: 20,
     elevation: 2,
   },
-  title: { fontSize: 20, fontWeight: "600", marginBottom: 16, textAlign: "center" },
+  title: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    textAlign: "center",
+  },
   moodContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
