@@ -1,5 +1,5 @@
 // /screens/MoodLogScreen.jsx
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,71 +13,71 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-} from "react-native";
-import { Colors } from "../utils/Colors";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+} from 'react-native';
+import { Colors } from '../utils/Colors';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MoodLogScreen = ({ navigation }) => {
   const [selectedMood, setSelectedMood] = useState(null);
   const [selectedFactors, setSelectedFactors] = useState([]);
-  const [journalText, setJournalText] = useState("");
+  const [journalText, setJournalText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const moods = [
-    { emoji: "😊", label: "Happy", color: "#F59E0B" },
-    { emoji: "😐", label: "Neutral", color: "#4A90E2" },
-    { emoji: "😔", label: "Sad", color: "#64748B" },
-    { emoji: "😡", label: "Angry", color: "#EF4444" },
-    { emoji: "😴", label: "Tired", color: "#10B981" },
+    { emoji: '😊', label: 'Happy', color: '#F59E0B' },
+    { emoji: '😐', label: 'Neutral', color: '#4A90E2' },
+    { emoji: '😔', label: 'Sad', color: '#64748B' },
+    { emoji: '😡', label: 'Angry', color: '#EF4444' },
+    { emoji: '😴', label: 'Tired', color: '#10B981' },
   ];
 
   // Helper: convert hex color to rgba with opacity
   const hexToRgba = (hex, alpha = 0.12) => {
-    const match = hex.replace("#", "").match(/.{1,2}/g);
+    const match = hex.replace('#', '').match(/.{1,2}/g);
     if (!match || match.length < 3) return hex;
     const [r, g, b] = match.map((x) => parseInt(x, 16));
     return `rgba(${r},${g},${b},${alpha})`;
   };
 
   const factors = [
-    "Work",
-    "Exercise",
-    "Family",
-    "Hobbies",
-    "Finances",
-    "Sleep",
-    "Drink",
-    "Food",
-    "Relationships",
-    "Education",
-    "Weather",
-    "Music",
-    "Travel",
-    "Health",
+    'Work',
+    'Exercise',
+    'Family',
+    'Hobbies',
+    'Finances',
+    'Sleep',
+    'Drink',
+    'Food',
+    'Relationships',
+    'Education',
+    'Weather',
+    'Music',
+    'Travel',
+    'Health',
   ];
 
   // Fake speech-to-text simulation
   const simulateSpeechRecognition = () => {
     setIsRecording(true);
     const responses = {
-      Happy: "Today was a great day! I felt motivated and grateful.",
-      Neutral: "It was an average day, nothing special.",
-      Sad: "I felt down today, not very motivated.",
-      Angry: "I got frustrated with some situations at work.",
-      Tired: "I felt very drained and needed rest.",
+      Happy: 'Today was a great day! I felt motivated and grateful.',
+      Neutral: 'It was an average day, nothing special.',
+      Sad: 'I felt down today, not very motivated.',
+      Angry: 'I got frustrated with some situations at work.',
+      Tired: 'I felt very drained and needed rest.',
     };
     const response =
       selectedMood && responses[selectedMood.label]
         ? responses[selectedMood.label]
-        : "It was an okay day.";
+        : 'It was an okay day.';
 
     setTimeout(() => {
       setIsRecording(false);
-      setJournalText((prev) => (prev ? prev + " " + response : response));
-      Alert.alert("Voice Input", "Speech converted to text (simulated).");
+      setJournalText((prev) => (prev ? prev + ' ' + response : response));
+      Alert.alert('Voice Input', 'Speech converted to text (simulated).');
     }, 2500);
   };
 
@@ -86,9 +86,9 @@ const MoodLogScreen = ({ navigation }) => {
   // Basic sentiment analysis
   const analyzeSentiment = (text) => {
     if (!text || text.length < 5) return null;
-    const positive = ["happy", "good", "great", "love"];
-    const negative = ["sad", "bad", "angry", "hate"];
-    const tired = ["tired", "exhausted", "sleepy"];
+    const positive = ['happy', 'good', 'great', 'love'];
+    const negative = ['sad', 'bad', 'angry', 'hate'];
+    const tired = ['tired', 'exhausted', 'sleepy'];
 
     let score = { pos: 0, neg: 0, tired: 0 };
     text
@@ -100,10 +100,10 @@ const MoodLogScreen = ({ navigation }) => {
         if (tired.includes(w)) score.tired++;
       });
 
-    if (score.pos > score.neg && score.pos > score.tired) return "positive";
-    if (score.neg > score.pos && score.neg > score.tired) return "negative";
-    if (score.tired > score.pos && score.tired > score.neg) return "tired";
-    return "neutral";
+    if (score.pos > score.neg && score.pos > score.tired) return 'positive';
+    if (score.neg > score.pos && score.neg > score.tired) return 'negative';
+    if (score.tired > score.pos && score.tired > score.neg) return 'tired';
+    return 'neutral';
   };
 
   const suggestMoodFromText = async () => {
@@ -112,13 +112,13 @@ const MoodLogScreen = ({ navigation }) => {
     await new Promise((res) => setTimeout(res, 1000));
     const sentiment = analyzeSentiment(journalText);
     switch (sentiment) {
-      case "positive":
+      case 'positive':
         setSelectedMood(moods[0]);
         break;
-      case "negative":
+      case 'negative':
         setSelectedMood(moods[2]);
         break;
-      case "tired":
+      case 'tired':
         setSelectedMood(moods[4]);
         break;
       default:
@@ -136,19 +136,18 @@ const MoodLogScreen = ({ navigation }) => {
   // ✅ Save mood log to backend
   const handleSubmit = async () => {
     if (!selectedMood) {
-      Alert.alert("Select Mood", "Please choose your mood before submitting.");
+      Alert.alert('Select Mood', 'Please choose your mood before submitting.');
       return;
     }
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem("userToken");
+      const token = await AsyncStorage.getItem('userToken');
       if (!token) {
-        Alert.alert("Auth Error", "You are not logged in.");
+        Alert.alert('Auth Error', 'You are not logged in.');
         return;
       }
 
-      const baseURL =
-        Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
+      const baseURL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
 
       const res = await axios.post(
         `${baseURL}/api/moodlogs`,
@@ -159,21 +158,18 @@ const MoodLogScreen = ({ navigation }) => {
         },
         {
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      console.log("✅ Mood log saved:", res.data);
-      Alert.alert("Success", "Mood log saved successfully!");
-      navigation.navigate("Home"); // go back to dashboard
+      console.log('✅ Mood log saved:', res.data);
+      Alert.alert('Success', 'Mood log saved successfully!');
+      navigation.navigate('Home'); // go back to dashboard
     } catch (error) {
-      console.error(
-        "❌ Error saving mood:",
-        error.response?.data || error.message
-      );
-      Alert.alert("Error", error.response?.data?.message || "Failed to save mood log.");
+      console.error('❌ Error saving mood:', error.response?.data || error.message);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to save mood log.');
     } finally {
       setLoading(false);
     }
@@ -183,9 +179,8 @@ const MoodLogScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.primary} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoid}
-      >
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
             <Text style={styles.logo}>🩺 Healio</Text>
@@ -206,15 +201,14 @@ const MoodLogScreen = ({ navigation }) => {
                       transform: [{ scale: 1.1 }],
                     },
                   ]}
-                  onPress={() => setSelectedMood(mood)}
-                >
+                  onPress={() => setSelectedMood(mood)}>
                   <Text style={styles.moodEmoji}>{mood.emoji}</Text>
                   <Text style={styles.moodLabel}>{mood.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.sectionTitle}>What's affecting your mood?</Text>
+            <Text style={styles.sectionTitle}>What&apos;s affecting your mood?</Text>
             <View style={styles.factorsContainer}>
               {factors.map((factor, i) => (
                 <TouchableOpacity
@@ -223,14 +217,12 @@ const MoodLogScreen = ({ navigation }) => {
                     styles.factorButton,
                     selectedFactors.includes(factor) && styles.factorButtonSelected,
                   ]}
-                  onPress={() => toggleFactor(factor)}
-                >
+                  onPress={() => toggleFactor(factor)}>
                   <Text
                     style={[
                       styles.factorText,
                       selectedFactors.includes(factor) && styles.factorTextSelected,
-                    ]}
-                  >
+                    ]}>
                     {factor}
                   </Text>
                 </TouchableOpacity>
@@ -249,13 +241,10 @@ const MoodLogScreen = ({ navigation }) => {
             <View style={styles.voiceActions}>
               <TouchableOpacity
                 style={[styles.voiceButton, isRecording && styles.voiceButtonActive]}
-                onPress={startSpeechToText}
-              >
-                <Text style={styles.voiceButtonIcon}>
-                  {isRecording ? "⏹️" : "🎤"}
-                </Text>
+                onPress={startSpeechToText}>
+                <Text style={styles.voiceButtonIcon}>{isRecording ? '⏹️' : '🎤'}</Text>
                 <Text style={styles.voiceButtonText}>
-                  {isRecording ? "Recording..." : "Tap to Speak"}
+                  {isRecording ? 'Recording...' : 'Tap to Speak'}
                 </Text>
               </TouchableOpacity>
 
@@ -263,8 +252,7 @@ const MoodLogScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.analyzeButton}
                   onPress={suggestMoodFromText}
-                  disabled={isProcessing}
-                >
+                  disabled={isProcessing}>
                   {isProcessing ? (
                     <ActivityIndicator color="white" size="small" />
                   ) : (
@@ -280,10 +268,9 @@ const MoodLogScreen = ({ navigation }) => {
                 (!selectedMood || loading) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={!selectedMood || loading}
-            >
+              disabled={!selectedMood || loading}>
               <Text style={styles.submitButtonText}>
-                {loading ? "Saving..." : "Log Mood & Continue"}
+                {loading ? 'Saving...' : 'Log Mood & Continue'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -298,8 +285,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.primary },
   keyboardAvoid: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 20 },
-  header: { alignItems: "center", padding: 16 },
-  logo: { fontSize: 28, fontWeight: "bold", color: Colors.secondary },
+  header: { alignItems: 'center', padding: 16 },
+  logo: { fontSize: 28, fontWeight: 'bold', color: Colors.secondary },
   headerSubtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
   card: {
     backgroundColor: Colors.card,
@@ -310,29 +297,29 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 16,
-    textAlign: "center",
+    textAlign: 'center',
   },
   moodContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
     marginBottom: 16,
   },
   moodButton: {
-    width: "28%",
-    alignItems: "center",
+    width: '28%',
+    alignItems: 'center',
     padding: 12,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: 'transparent',
     marginBottom: 12,
   },
   moodEmoji: { fontSize: 28 },
   moodLabel: { fontSize: 12, marginTop: 4, color: Colors.textSecondary },
-  sectionTitle: { fontSize: 16, fontWeight: "600", marginVertical: 12 },
-  factorsContainer: { flexDirection: "row", flexWrap: "wrap" },
+  sectionTitle: { fontSize: 16, fontWeight: '600', marginVertical: 12 },
+  factorsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   factorButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -344,7 +331,7 @@ const styles = StyleSheet.create({
   },
   factorButtonSelected: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
   factorText: { fontSize: 13, color: Colors.textSecondary },
-  factorTextSelected: { color: "white", fontWeight: "500" },
+  factorTextSelected: { color: 'white', fontWeight: '500' },
   journalInput: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -352,14 +339,14 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 15,
     minHeight: 120,
-    textAlignVertical: "top",
+    textAlignVertical: 'top',
     marginBottom: 12,
   },
-  voiceActions: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+  voiceActions: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   voiceButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 10,
     backgroundColor: Colors.primary,
     borderRadius: 8,
@@ -367,24 +354,24 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginRight: 8,
   },
-  voiceButtonActive: { backgroundColor: "#E0F2FE" },
+  voiceButtonActive: { backgroundColor: '#E0F2FE' },
   voiceButtonIcon: { fontSize: 18, marginRight: 6 },
   voiceButtonText: { color: Colors.textSecondary },
   analyzeButton: {
     backgroundColor: Colors.secondary,
     borderRadius: 8,
     paddingHorizontal: 12,
-    justifyContent: "center",
+    justifyContent: 'center',
   },
-  analyzeButtonText: { color: "white", fontWeight: "600", fontSize: 12 },
+  analyzeButtonText: { color: 'white', fontWeight: '600', fontSize: 12 },
   submitButton: {
     backgroundColor: Colors.accent,
     borderRadius: 12,
     padding: 14,
-    alignItems: "center",
+    alignItems: 'center',
   },
   submitButtonDisabled: { backgroundColor: Colors.disabled },
-  submitButtonText: { color: "white", fontSize: 16, fontWeight: "bold" },
+  submitButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });
 
 export default MoodLogScreen;
