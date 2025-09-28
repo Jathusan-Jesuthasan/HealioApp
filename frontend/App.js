@@ -24,6 +24,7 @@ import ProfileScreen from "./screens/ProfileScreen";
 import MoodLogScreen from "./screens/MoodLogScreen";
 import MoodHistoryScreen from "./screens/MoodHistoryScreen";
 import MoodDetailScreen from "./screens/MoodDetailScreen";
+import EditMoodScreen from "./screens/EditMoodScreen"; // ✅ NEW
 
 // ---- Profile-related ----
 import PersonalInfoScreen from "./screens/PersonalInfoScreen";
@@ -66,7 +67,10 @@ const withHeader =
 // ---------------- Profile Stack ----------------
 function ProfileStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ProfileMain">
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="ProfileMain"
+    >
       <Stack.Screen name="ProfileMain" component={withHeader(ProfileScreen)} />
       <Stack.Screen name="PersonalInfo" component={withHeader(PersonalInfoScreen)} />
       <Stack.Screen name="Notifications" component={withHeader(NotificationsScreen)} />
@@ -128,8 +132,8 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
           />
         </>
       )}
-      <Stack.Screen name="Login" component={withHeader(LoginScreen, 0)} />
-      <Stack.Screen name="Signup" component={withHeader(SignupScreen, 0)} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Signup" component={SignupScreen} />
     </Stack.Navigator>
   );
 }
@@ -166,9 +170,11 @@ function RootNavigator() {
     <NavigationContainer theme={DefaultTheme}>
       {userToken ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {/* 🔹 Main Tabs */}
           <Stack.Screen name="AppTabs" component={AppTabs} />
-          {/* ✅ Mood Detail only accessible from history */}
+          {/* 🔹 Mood Flow Detail Screens (outside tabs) */}
           <Stack.Screen name="MoodDetail" component={MoodDetailScreen} />
+          <Stack.Screen name="EditMood" component={EditMoodScreen} />
         </Stack.Navigator>
       ) : (
         <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />
