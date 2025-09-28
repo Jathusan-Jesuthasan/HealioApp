@@ -701,6 +701,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+    paddingBottom: 10,
   },
   title: {
     fontSize: 18,
