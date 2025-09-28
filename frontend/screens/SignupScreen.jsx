@@ -22,7 +22,6 @@ export default function SignupScreen({ navigation }) {
   const validateEmail = (val) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val).toLowerCase());
 
-  // Always reaches Login even if stacks change
   const goToLogin = () => {
     navigation.dispatch(
       CommonActions.reset({
@@ -48,7 +47,8 @@ export default function SignupScreen({ navigation }) {
 
     try {
       setLoading(true);
-      const { data } = await api.post("/api/auth/register", { email, password });
+      // ✅ Fixed endpoint
+      const { data } = await api.post("/auth/register", { email, password });
       console.log("Registered:", data);
       Alert.alert("Welcome!", "Account created successfully. Please log in.");
       goToLogin();
@@ -99,16 +99,21 @@ export default function SignupScreen({ navigation }) {
           />
 
           <TouchableOpacity
-            style={styles.signUpButton}
+            style={[styles.signUpButton, { opacity: loading ? 0.7 : 1 }]}
             onPress={handleSignup}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator /> : <Text style={styles.signUpText}>Sign up</Text>}
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.signUpText}>Sign up</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={goToLogin}>
             <Text style={styles.switchText}>
-              Already have an account? <Text style={styles.switchTextLink}>Log in</Text>
+              Already have an account?{" "}
+              <Text style={styles.switchTextLink}>Log in</Text>
             </Text>
           </TouchableOpacity>
         </View>

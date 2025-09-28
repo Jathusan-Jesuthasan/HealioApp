@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// frontend/screens/MoodHistoryScreen.jsx
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,20 +7,60 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../utils/Colors";
+import { getMoods, deleteMood } from "../config/api";
+import Toast from "react-native-toast-message";
 
 export default function MoodHistoryScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const [moods, setMoods] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [moods] = useState([
-    { id: "1", emoji: "😊", note: "Had a good workout", date: "2025-09-24" },
-    { id: "2", emoji: "😔", note: "Felt tired after class", date: "2025-09-23" },
-    { id: "3", emoji: "😡", note: "Argument with a friend", date: "2025-09-22" },
-  ]);
+  // Fetch moods
+  const fetchMoods = async () => {
+    try {
+      const res = await getMoods();
+      setMoods(res.data || []);
+    } catch (err) {
+      console.error("Fetch moods error:", err.message);
+      Toast.show({ type: "error", text1: "Failed to load moods" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Delete mood
+  const handleDelete = (id) => {
+    Alert.alert("Delete Entry", "Are you sure you want to delete this mood?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteMood(id);
+            Toast.show({ type: "success", text1: "Deleted 🗑️" });
+            fetchMoods(); // reload
+          } catch (err) {
+            console.error("Delete mood error:", err.message);
+            Toast.show({ type: "error", text1: "Delete failed" });
+          }
+        },
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", fetchMoods);
+    return unsubscribe;
+  }, [navigation]);
+
+  // Render list item
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
@@ -31,23 +72,53 @@ export default function MoodHistoryScreen({ navigation }) {
 
       <View style={styles.textWrapper}>
         <Text style={styles.note} numberOfLines={1}>
-          {item.note}
+          {item.note || "No note"}
         </Text>
-        <Text style={styles.date}>{item.date}</Text>
+        <Text style={styles.date}>
+          {item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString()
+            : "Unknown date"}
+        </Text>
       </View>
+
+      <TouchableOpacity
+        onPress={() => handleDelete(item._id)}
+        style={styles.deleteBtn}
+      >
+        <Ionicons name="trash-outline" size={20} color="red" />
+      </TouchableOpacity>
 
       <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { paddingTop: insets.top, justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color={Colors.secondary} />
+        <Text>Loading moods...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <Text style={styles.title}>Your Mood History</Text>
       <FlatList
         data={moods}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: 120 }}
+        ListEmptyComponent={
+          <Text style={{ textAlign: "center", marginTop: 40, color: Colors.textLight }}>
+            No moods logged yet 🌱
+          </Text>
+        }
       />
     </SafeAreaView>
   );
@@ -84,4 +155,5 @@ const styles = StyleSheet.create({
   textWrapper: { flex: 1 },
   note: { fontSize: 16, fontWeight: "500", color: Colors.textDark },
   date: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  deleteBtn: { marginRight: 10 },
 });

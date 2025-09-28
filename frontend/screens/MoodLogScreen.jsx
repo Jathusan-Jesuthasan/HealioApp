@@ -1,3 +1,4 @@
+// frontend/screens/MoodLogScreen.jsx
 import React, { useState } from "react";
 import {
   View,
@@ -12,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { Colors } from "../utils/Colors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { addMood } from "../config/api"; // ✅ uses backend
 
 export default function MoodLogScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -26,26 +28,43 @@ export default function MoodLogScreen({ navigation }) {
     { emoji: "😴", label: "Tired" },
   ];
 
-  const handleSave = () => {
-    if (!selectedEmoji && !moodText.trim()) {
+  const handleSave = async () => {
+    if (!selectedEmoji) {
       Toast.show({
         type: "error",
-        text1: "Oops!",
-        text2: "Please select an emoji or enter your mood.",
+        text1: "Emoji Required 😕",
+        text2: "Please pick an emoji before saving your mood.",
       });
       return;
     }
 
-    Toast.show({
-      type: "success",
-      text1: "Mood Saved 🌱",
-      text2: "Your entry has been added to history.",
-    });
+    try {
+      await addMood({
+        emoji: selectedEmoji,
+        note: moodText || "",
+        date: new Date().toISOString(),
+      });
 
-    setSelectedEmoji(null);
-    setMoodText("");
+      Toast.show({
+        type: "success",
+        text1: "Mood Saved 🌱",
+        text2: "Your entry has been added to history.",
+      });
 
-    navigation.navigate("MoodHistory");
+      // Reset state
+      setSelectedEmoji(null);
+      setMoodText("");
+
+      // ✅ Go to history
+      navigation.navigate("MoodHistory");
+    } catch (err) {
+      console.error("Save mood error:", err.message);
+      Toast.show({
+        type: "error",
+        text1: "Failed to save",
+        text2: "Check your connection and try again",
+      });
+    }
   };
 
   return (
@@ -57,6 +76,7 @@ export default function MoodLogScreen({ navigation }) {
       >
         <Text style={styles.title}>How are you feeling today? 🌱</Text>
 
+        {/* Emoji grid */}
         <View style={styles.emojiGrid}>
           {emojis.map((item, idx) => (
             <TouchableOpacity
@@ -73,6 +93,7 @@ export default function MoodLogScreen({ navigation }) {
           ))}
         </View>
 
+        {/* Input */}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -96,6 +117,7 @@ export default function MoodLogScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* Face scan */}
         <TouchableOpacity
           style={styles.faceScan}
           onPress={() =>
@@ -111,6 +133,7 @@ export default function MoodLogScreen({ navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Actions */}
       <View style={styles.bottomActions}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.btnText}>Save Mood</Text>
@@ -160,7 +183,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 15,
   },
-  input: { flex: 1, minHeight: 50, maxHeight: 120, paddingVertical: 8, color: Colors.textDark },
+  input: {
+    flex: 1,
+    minHeight: 50,
+    maxHeight: 120,
+    paddingVertical: 8,
+    color: Colors.textDark,
+  },
   micButton: { padding: 8 },
   faceScan: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
   faceScanText: { color: Colors.secondary, fontSize: 16 },
