@@ -111,7 +111,7 @@ const MoodStatsScreen = ({ navigation }) => {
     switch (moodTrend) {
       case 'rising': return { icon: 'trending-up', color: '#00b894' };
       case 'falling': return { icon: 'trending-down', color: '#ff7675' };
-      default: return { icon: 'trending-flat', color: '#fdcb6e' };
+      default: return { icon: 'remove', color: '#fdcb6e' };
     }
   };
 
@@ -248,7 +248,7 @@ const MoodStatsScreen = ({ navigation }) => {
                 <Text style={styles.noDataText}>Start logging your moods to see insights!</Text>
                 <TouchableOpacity 
                   style={styles.logMoodButton}
-                  onPress={() => navigation.navigate('MoodLog')}
+                  onPress={() => navigation.navigate('AppTabs', { screen: 'MoodLog' })}
                 >
                   <Text style={styles.logMoodText}>Log Your First Mood</Text>
                 </TouchableOpacity>
