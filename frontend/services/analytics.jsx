@@ -4,9 +4,11 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// -------- Base URL detection (emulator, device, web) --------
+//
+// ---------- Base URL detection (emulator, device, web) ----------
+//
 function guessBaseURL() {
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
+  if (Platform.OS === 'android') return 'http://10.0.2.2:5000'; // Android emulator
 
   const hostUri =
     Constants?.expoConfig?.hostUri ||
@@ -18,16 +20,20 @@ function guessBaseURL() {
     return `http://${host}:5000`;
   }
 
-  return 'http://localhost:5000';
+  return 'http://localhost:5000'; // default for local dev
 }
 
-// -------- Axios instance --------
+//
+// ---------- Axios instance ----------
+//
 const api = axios.create({
-  baseURL: `${guessBaseURL()}/api`, // ✅ root `/api` instead of `/api/dashboard`
+  baseURL: `${guessBaseURL()}/api`, // root points to /api
   timeout: 15000,
 });
 
-// -------- Token Interceptor --------
+//
+// ---------- Token Interceptor ----------
+//
 api.interceptors.request.use(async (config) => {
   try {
     const token = await AsyncStorage.getItem('userToken');
@@ -40,16 +46,31 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// -------- API Methods --------
+//
+// ---------- API Methods ----------
+//
 
-// Dashboard Summary (Mind Balance, Weekly Moods, Progress, Risk Flag)
+// ✅ Dashboard Summary (Mind Balance, Weekly Moods, Progress, Risk Flag)
 export async function getDashboard(range = '7d') {
   const { data } = await api.get('/dashboard', { params: { range } });
   return data;
 }
 
-// AI Risk Analysis (e.g., Gemini-based analysis of recent mood logs)
-export async function getRiskAnalysis() {
-  const { data } = await api.get('/dashboard/risk-analysis');
-  return data;
+// ✅ AI Risk Analysis via backend (Gemini call happens server-side)
+export async function getRiskAnalysis(moodLogs = []) {
+  // We send moodLogs or any input to backend
+  const { data } = await api.post('/ai/risk-analysis', { moodLogs });
+  return data; // expects { riskLevel, suggestion, history }
+}
+
+// ✅ Fetch AI analysis history
+export async function getRiskHistory() {
+  const { data } = await api.get('/ai/risk-history');
+  return data; // expects an array of previous AI analyses
+}
+
+// ✅ Trigger an immediate report send (optional)
+export async function sendWeeklyReport() {
+  const { data } = await api.post('/ai/send-report');
+  return data; // expects { success: true/false, message }
 }
