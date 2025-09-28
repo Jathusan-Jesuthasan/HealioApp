@@ -22,6 +22,7 @@ export default function LoginScreen({ navigation }) {
   const isValidEmail = (val) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val).toLowerCase());
 
+  // 🔹 Handle Login
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
 
@@ -34,13 +35,16 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      const { data } = await api.post("/api/auth/login", {
+      const { data } = await api.post("/auth/login", {
         email: trimmedEmail,
         password,
       });
-    await signIn(data.token); // saved to AsyncStorage via context
-    Alert.alert("Success", "Login Successful!");
-    navigation.replace("MoodLog"); // Go to MoodLogScreen after login
+
+      await signIn(data.token);
+      Alert.alert("Success", "Login Successful!");
+
+      // ✅ Go to AppTabs (MoodLog is inside AppTabs)
+      navigation.replace("AppTabs");
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
@@ -53,6 +57,7 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // 🔹 Forgot password
   const handleForgot = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
@@ -63,7 +68,7 @@ export default function LoginScreen({ navigation }) {
     }
     try {
       setLoading(true);
-      await api.post("/api/auth/forgot-password", { email: trimmedEmail });
+      await api.post("/auth/forgot-password", { email: trimmedEmail });
       Alert.alert(
         "Check Your Inbox",
         "If that email exists, a reset link has been sent."
@@ -118,7 +123,11 @@ export default function LoginScreen({ navigation }) {
           onPress={handleSignIn}
           disabled={loading}
         >
-          {loading ? <ActivityIndicator /> : <Text style={styles.signInText}>Sign in</Text>}
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.signInText}>Sign in</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
@@ -144,10 +153,25 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f9fbff", padding: 20, justifyContent: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fbff",
+    padding: 20,
+    justifyContent: "center",
+  },
   header: { marginBottom: 40, alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "700", color: "#4682e9", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#333", marginTop: 10, textAlign: "center" },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#4682e9",
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#333",
+    marginTop: 10,
+    textAlign: "center",
+  },
   form: { width: "100%" },
   input: {
     borderWidth: 1,
@@ -157,7 +181,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     backgroundColor: "#fff",
   },
-  forgotText: { color: "#2a60d4", fontSize: 14, alignSelf: "flex-end", marginBottom: 20 },
+  forgotText: {
+    color: "#2a60d4",
+    fontSize: 14,
+    alignSelf: "flex-end",
+    marginBottom: 20,
+  },
   signInButton: {
     backgroundColor: "#34c759",
     padding: 15,
@@ -169,8 +198,18 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   signInText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  createAccount: { fontSize: 14, color: "#333", textAlign: "center", marginBottom: 20 },
-  orText: { textAlign: "center", color: "#4682e9", fontWeight: "500", marginBottom: 15 },
+  createAccount: {
+    fontSize: 14,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  orText: {
+    textAlign: "center",
+    color: "#4682e9",
+    fontWeight: "500",
+    marginBottom: 15,
+  },
   socialContainer: { flexDirection: "row", justifyContent: "center", gap: 20 },
   socialButton: {
     backgroundColor: "#fff",
