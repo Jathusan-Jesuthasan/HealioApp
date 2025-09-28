@@ -1,25 +1,48 @@
+// frontend/screens/MoodDetailScreen.jsx
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../utils/Colors";
+import { deleteMood } from "../config/api";
+import Toast from "react-native-toast-message";
 
 export default function MoodDetailScreen({ route, navigation }) {
   const { mood } = route.params;
   const insets = useSafeAreaInsets();
 
+  // Delete function
   const handleDelete = () => {
     Alert.alert("Delete Entry", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: () => {
-          Alert.alert("Deleted", "Mood entry removed.");
-          navigation.goBack();
+        onPress: async () => {
+          try {
+            await deleteMood(mood._id);
+            Toast.show({
+              type: "success",
+              text1: "Deleted 🗑️",
+              text2: "Mood entry removed successfully",
+            });
+            navigation.navigate("MoodHistory");
+          } catch (err) {
+            console.error("Delete mood error:", err.message);
+            Toast.show({
+              type: "error",
+              text1: "Delete Failed",
+              text2: "Could not remove mood. Try again.",
+            });
+          }
         },
       },
     ]);
+  };
+
+  // Navigate to edit screen
+  const handleEdit = () => {
+    navigation.navigate("EditMood", { mood });
   };
 
   return (
@@ -30,7 +53,9 @@ export default function MoodDetailScreen({ route, navigation }) {
 
       <Text style={styles.emoji}>{mood.emoji}</Text>
       <Text style={styles.note}>{mood.note}</Text>
-      <Text style={styles.date}>Date: {mood.date}</Text>
+      <Text style={styles.date}>
+        Date: {new Date(mood.createdAt).toLocaleDateString()}
+      </Text>
 
       <View style={styles.insightCard}>
         <Ionicons name="analytics-outline" size={20} color={Colors.secondary} />
@@ -42,14 +67,17 @@ export default function MoodDetailScreen({ route, navigation }) {
       <View style={styles.bottomActions}>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: Colors.secondary }]}
-          onPress={() => Alert.alert("Edit feature coming soon!")}
+          onPress={handleEdit}
         >
           <Ionicons name="create-outline" size={20} color="#fff" />
           <Text style={[styles.actionText, { color: "#fff" }]}> Edit Entry</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: "#fff", borderWidth: 1, borderColor: "red" }]}
+          style={[
+            styles.actionButton,
+            { backgroundColor: "#fff", borderWidth: 1, borderColor: "red" },
+          ]}
           onPress={handleDelete}
         >
           <Ionicons name="trash-outline" size={20} color="red" />
