@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import moodLogRoutes from "./routes/moodLogRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 // ----------------- Load env first -----------------
 dotenv.config();
@@ -47,6 +48,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/moodlogs", moodLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/ai", aiRoutes);
 
 // ----------------- Global Error Handler -----------------
 app.use((err, req, res, next) => {
