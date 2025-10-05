@@ -180,6 +180,9 @@ export default function ReportScreen() {
       ) : (
         <Text style={styles.info}>No data available for this range.</Text>
       )}
+
+      {/* Extra space for mobile responsiveness */}
+                  <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
