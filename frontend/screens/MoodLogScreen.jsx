@@ -274,6 +274,8 @@ const MoodLogScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           </View>
+          {/* Extra space for mobile responsiveness */}
+            <View style={{ height: 80 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
