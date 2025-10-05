@@ -18,6 +18,8 @@ import ProgressBarCustom from '../components/ProgressBarCustom';
 import { Colors } from '../utils/Colors';
 import { getDashboard } from '../services/analytics';
 import { Ionicons } from '@expo/vector-icons';
+import MotivationCard from "../components/MotivationCard";
+
 
 const screenWidth = Math.min(Dimensions.get('window').width - 48, 720);
 
@@ -451,6 +453,9 @@ export default function DashboardScreen({ navigation }) {
                 </View>
               </TouchableOpacity>
             </Card>
+
+            {/* Extra space for mobile responsiveness */}
+            <View style={{ height: 100 }} />
           </Animated.View>
         </>
       )}
