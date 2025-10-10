@@ -164,6 +164,23 @@ const MoodLogScreen = ({ navigation }) => {
         }
       );
 
+      // 🔥 Trigger AI risk analysis automatically after mood log
+      try {
+        await axios.post(
+          `${baseURL}/api/ai/risk-analysis`,
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log('✅ AI risk analysis triggered');
+      } catch (aiErr) {
+        console.warn('⚠️ AI risk analysis failed:', aiErr.response?.data || aiErr.message);
+      }
+
       console.log('✅ Mood log saved:', res.data);
       Alert.alert('Success', 'Mood log saved successfully!');
       navigation.navigate('Home'); // go back to dashboard

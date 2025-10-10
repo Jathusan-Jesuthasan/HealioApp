@@ -40,7 +40,7 @@ const RiskDetectionScreen = ({ navigation }) => {
           : "http://localhost:5000";
 
       // Step 1: Fetch mood logs
-      const dashboardRes = await axios.get(`${baseURL}/api/dashboard?range=15d`, {
+      const dashboardRes = await axios.get(`${baseURL}/api/dashboard?range=4d`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: token ? `Bearer ${token}` : "",
@@ -63,13 +63,21 @@ const RiskDetectionScreen = ({ navigation }) => {
       const ai = aiRes.data;
 
       // Step 3: Format response
-      const formatted = {
-        mindBalanceScore: ai.wellnessIndex || 50,
-        riskLevel: ai.riskLevel || "MODERATE",
-        summary: ai.summary || "No significant risk patterns found.",
-        suggestions: ai.suggestions || [],
-        timestamp: ai.date || new Date().toISOString(),
-      };
+      // Step 3: Format response
+const formatted = {
+  mindBalanceScore: ai.mindBalanceScore || 70,
+  riskLevel:
+    ai.risks && ai.risks[0]
+      ? ai.risks[0].category.toUpperCase()
+      : "STABLE",
+  summary:
+    ai.risks && ai.risks[0]
+      ? ai.risks[0].message
+      : "No significant risk patterns found.",
+  suggestions: ai.suggestion ? [ai.suggestion] : ["Keep maintaining your emotional balance! 💪"],
+  timestamp: ai.createdAt || new Date().toISOString(),
+};
+
 
       setRiskData(formatted);
       setLastChecked(new Date().toLocaleString());
@@ -226,7 +234,7 @@ const RiskDetectionScreen = ({ navigation }) => {
       <View style={styles.header}>
         <Text style={styles.title}>AI Wellness Insights</Text>
         <Text style={styles.subtitle}>
-          Based on your recent 15-day mood logs • Last checked: {lastChecked}
+          Based on your recent 4-day mood logs • Last checked: {lastChecked}
         </Text>
       </View>
 
