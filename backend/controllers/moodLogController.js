@@ -15,13 +15,14 @@ export const createMoodLog = async (req, res) => {
       return res.status(400).json({ message: "Mood is required" });
     }
 
-    // ✅ ensure valid userId
-    if (!mongoose.Types.ObjectId.isValid(req.user)) {
+    // ✅ Correct user id reference
+    const userId = req.user?._id || req.user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ message: "Invalid user ID" });
     }
 
     const newLog = await MoodLog.create({
-      user: req.user,     // req.user is set in authMiddleware (decoded.id)
+      user: userId,
       mood,
       factors: Array.isArray(factors) ? factors : [],
       journal,
@@ -41,14 +42,15 @@ export const createMoodLog = async (req, res) => {
  */
 export const getMoodLogs = async (req, res) => {
   try {
-    // ✅ ensure valid userId
-    if (!mongoose.Types.ObjectId.isValid(req.user)) {
+    // ✅ Correct user id reference
+    const userId = req.user?._id || req.user;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(401).json({ message: "Invalid user ID" });
     }
 
-    const logs = await MoodLog.find({ user: req.user })
+    const logs = await MoodLog.find({ user: userId })
       .sort({ createdAt: -1 })
-      .lean(); // lean = return plain JS objects (faster)
+      .lean();
 
     return res.json(logs);
   } catch (err) {

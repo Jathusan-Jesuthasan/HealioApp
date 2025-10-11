@@ -111,9 +111,10 @@ router.post("/risk-analysis", protect, async (req, res) => {
     const prompt = `${PROMPT_TEMPLATE}\nLogs:\n${logsText}`;
 
     // 3️⃣ Send to Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  console.log("[Gemini raw response]", text);
 
     // 4️⃣ Parse JSON safely
     let aiOutput;

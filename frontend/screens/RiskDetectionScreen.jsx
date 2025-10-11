@@ -113,7 +113,7 @@ const formatted = {
       });
 
       const moodLogs = res.data.moodLogs || [];
-      const recentMoods = moodLogs.slice(-7);
+  const recentMoods = (moodLogs || []).slice(-7);
       let avgMood = 3;
 
       if (recentMoods.length > 0) {

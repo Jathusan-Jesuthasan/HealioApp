@@ -38,7 +38,7 @@ import LogoutScreen from './screens/LogoutScreen';
 // ---- New feature screens ----
 import RiskDetectionScreen from './screens/RiskDetectionScreen';
 import MoodStatsScreen from './screens/MoodStatsScreen';
-import ReportScreen from './screens/ReportScreen';
+import AIInsightsHistory from './screens/AIInsightsHistory';
 
 // ---- Simple stubs ----
 const Stub = ({ label }) => (
@@ -165,8 +165,8 @@ function RootNavigator() {
             <Stack.Screen name="AppTabs" component={AppTabs} />
             {/* Extra Feature Screens */}
             <Stack.Screen name="RiskDetail" component={withHeader(RiskDetectionScreen)} />
-            <Stack.Screen name="Report" component={withHeader(ReportScreen)} />
             <Stack.Screen name="MoodStats" component={withHeader(MoodStatsScreen)} />
+            <Stack.Screen name="AIInsightsHistory" component={withHeader(AIInsightsHistory)} />
           </>
         ) : (
           <Stack.Screen name="AuthStack">

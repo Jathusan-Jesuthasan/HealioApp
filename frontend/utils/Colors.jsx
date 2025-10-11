@@ -33,4 +33,32 @@ export const Colors = {
     blueToGreen: ['#4A90E2', '#10B981'], // calm → growth
     purpleToPink: ['#8B5CF6', '#EC4899'], // playful gradient
   },
+
+  // 📊 Extended Analytics Palette (NEW)
+  chartColors: [
+    '#4A90E2', // Calm blue
+    '#10B981', // Emerald green
+    '#F59E0B', // Amber yellow
+    '#8B5CF6', // Violet
+    '#EF4444', // Red
+    '#3B82F6', // Info blue
+  ],
+
+  // 🧠 Shadows & Overlays (NEW)
+  shadow: 'rgba(0, 0, 0, 0.1)', // General shadow color
+  overlay: 'rgba(0, 0, 0, 0.4)', // Modal overlay background
+
+  // 📘 Report / PDF Specific (NEW)
+  report: {
+    headerBorder: '#4A90E2',
+    sectionBg: '#F8FAFC',
+    factorBg: '#E2E8F0',
+    footerText: '#64748B',
+  },
+
+  // 🌤️ Misc UI Shades (NEW)
+  successLight: '#D1FAE5', // Soft green background
+  warningLight: '#FEF3C7', // Soft yellow background
+  dangerLight: '#FEE2E2', // Soft red background
+  infoLight: '#DBEAFE', // Soft blue background
 };
