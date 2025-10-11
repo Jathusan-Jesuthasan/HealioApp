@@ -1,49 +1,67 @@
 // backend/server.js
-import express from "express";
+
+// ----------------- Load Environment Variables First -----------------
 import dotenv from "dotenv";
+dotenv.config({ path: "./.env" }); // ✅ Must be the first line to ensure env vars load before anything else
+
+// ----------------- Core Imports -----------------
+import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 
-// Routes
+// ----------------- Routes -----------------
 import authRoutes from "./routes/authRoutes.js";
 import moodLogRoutes from "./routes/moodLogRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 
-// ----------------- Load env first -----------------
-dotenv.config();
-
-// ----------------- Init App -----------------
+// ----------------- Initialize Express App -----------------
 const app = express();
 
-// ----------------- Connect DB -----------------
+// ----------------- Validate Critical Environment Variables -----------------
+const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "OPENAI_API_KEY"];
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.warn(
+    `⚠️  Missing required environment variables: ${missing.join(", ")}`
+  );
+  console.warn("Please check your .env file before starting the server.");
+} else {
+  console.log("✅ Environment variables loaded successfully");
+}
+
+// ----------------- Connect MongoDB -----------------
 try {
   await connectDB();
-  console.log("✅ MongoDB Connected");
+  console.log("✅ MongoDB Connected Successfully");
 } catch (err) {
-  console.error("❌ MongoDB connection failed:", err);
+  console.error("❌ MongoDB connection failed:", err.message);
   process.exit(1);
 }
 
 // ----------------- Middleware -----------------
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-
-// Allow all origins during dev (restrict in production)
 app.use(
   cors({
-    origin: "*",
+    origin: "*", // 🔒 You can restrict this later to your frontend domain
+    methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
 
-// ----------------- Health & Root -----------------
+// ----------------- Health Check Routes -----------------
 app.get("/", (req, res) => res.send("✅ Healio API is running"));
 app.get("/health", (req, res) =>
-  res.json({ ok: true, time: new Date().toISOString() })
+  res.json({
+    ok: true,
+    mongoConnected: true,
+    openaiKeyLoaded: !!process.env.OPENAI_API_KEY,
+    time: new Date().toISOString(),
+  })
 );
 
-// ----------------- API Routes -----------------
+// ----------------- Mount API Routes -----------------
 app.use("/api/auth", authRoutes);
 app.use("/api/moodlogs", moodLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -52,79 +70,14 @@ app.use("/api/ai", aiRoutes);
 
 // ----------------- Global Error Handler -----------------
 app.use((err, req, res, next) => {
-  console.error("🔥 Unhandled Error:", err);
-  res.status(500).json({ message: "Server error" });
+  console.error("🔥 Global Server Error:", err.stack || err);
+  res
+    .status(500)
+    .json({ message: "Internal Server Error", error: err.message || err });
 });
 
 // ----------------- Start Server -----------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`🚀 Healio API Server running on: http://localhost:${PORT}`)
 );
-
-
-
-// // backend/server.js
-// import express from "express";
-// import dotenv from "dotenv";
-// import cors from "cors";
-// import connectDB from "./config/db.js";
-
-// // Routes
-// import authRoutes from "./routes/authRoutes.js";
-// import moodLogRoutes from "./routes/moodLogRoutes.js";
-// import dashboardRoutes from "./routes/dashboardRoutes.js";
-// import analyticsRoutes from "./routes/analyticsRoutes.js";
-// import aiRoutes from "./routes/aiRoutes.js";
-
-
-
-// // ----------------- Load env first -----------------
-// dotenv.config();
-
-// // ----------------- Init App -----------------
-// const app = express();
-
-// // ----------------- Connect DB -----------------
-// try {
-//   await connectDB();
-//   console.log("✅ MongoDB Connected");
-// } catch (err) {
-//   console.error("❌ MongoDB connection failed:", err);
-//   process.exit(1);
-// }
-
-// // ----------------- Middleware -----------------
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-
-// // Allow all origins during dev (restrict in production)
-// app.use(
-//   cors({
-//     origin: "*",
-//   })
-// );
-
-// // ----------------- Health & Root -----------------
-// app.get("/", (req, res) => res.send("✅ Healio API is running"));
-// app.get("/health", (req, res) =>
-//   res.json({ ok: true, time: new Date().toISOString() })
-// );
-
-// // ----------------- API Routes -----------------
-// app.use("/api/auth", authRoutes);
-// app.use("/api/moodlogs", moodLogRoutes);
-// app.use("/api/dashboard", dashboardRoutes);
-// app.use("/api/analytics", analyticsRoutes);
-// app.use("/api/ai", aiRoutes);
-// // ----------------- Global Error Handler -----------------
-// app.use((err, req, res, next) => {
-//   console.error("🔥 Unhandled Error:", err);
-//   res.status(500).json({ message: "Server error" });
-// });
-
-// // ----------------- Start Server -----------------
-// const PORT = process.env.PORT || 5000;
-// app.listen(PORT, "0.0.0.0", () =>
-//   console.log(`🚀 Server running on http://localhost:${PORT}`)
-// );

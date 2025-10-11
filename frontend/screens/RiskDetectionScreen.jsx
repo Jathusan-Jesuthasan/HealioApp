@@ -33,13 +33,14 @@ const RiskDetectionScreen = ({ navigation }) => {
 
   const fetchRiskData = async () => {
     try {
+      setLoading(true);
       const token = await AsyncStorage.getItem("userToken");
       const baseURL =
         Platform.OS === "android"
           ? "http://10.0.2.2:5000"
           : "http://localhost:5000";
 
-      // Step 1: Fetch mood logs
+      // Step 1️⃣: Fetch dashboard logs (backup data)
       const dashboardRes = await axios.get(`${baseURL}/api/dashboard?range=4d`, {
         headers: {
           "Content-Type": "application/json",
@@ -48,7 +49,7 @@ const RiskDetectionScreen = ({ navigation }) => {
       });
       const moodLogs = dashboardRes.data.moodLogs || [];
 
-      // Step 2: Send to Gemini AI backend
+      // Step 2️⃣: Request AI hybrid analysis
       const aiRes = await axios.post(
         `${baseURL}/api/ai/risk-analysis`,
         { moodLogs },
@@ -61,23 +62,25 @@ const RiskDetectionScreen = ({ navigation }) => {
       );
 
       const ai = aiRes.data;
+      console.log("🧠 AI Response:", ai);
 
-      // Step 3: Format response
-      // Step 3: Format response
-const formatted = {
-  mindBalanceScore: ai.mindBalanceScore || 70,
-  riskLevel:
-    ai.risks && ai.risks[0]
-      ? ai.risks[0].category.toUpperCase()
-      : "STABLE",
-  summary:
-    ai.risks && ai.risks[0]
-      ? ai.risks[0].message
-      : "No significant risk patterns found.",
-  suggestions: ai.suggestion ? [ai.suggestion] : ["Keep maintaining your emotional balance! 💪"],
-  timestamp: ai.createdAt || new Date().toISOString(),
-};
-
+      // Step 3️⃣: Format backend JSON safely
+      const formatted = {
+        mindBalanceScore: ai.mindBalanceScore ?? 60,
+        riskLevel:
+          ai.risks && ai.risks[0]
+            ? ai.risks[0].category?.toUpperCase() || "STABLE"
+            : "STABLE",
+        summary:
+          ai.risks && ai.risks[0]
+            ? ai.risks[0].message || "No significant risk patterns found."
+            : "No significant risk patterns found.",
+        suggestions: ai.suggestion
+          ? [ai.suggestion]
+          : ["Keep maintaining your emotional balance! 💪"],
+        timestamp: ai.createdAt || new Date().toISOString(),
+        source: ai.source || "Local Model", // Added for transparency
+      };
 
       setRiskData(formatted);
       setLastChecked(new Date().toLocaleString());
@@ -96,7 +99,7 @@ const formatted = {
     }
   };
 
-  // --- Local fallback if AI fails ---
+  // --- Local fallback if both OpenAI + Gemini fail ---
   const performFallbackAnalysis = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
@@ -113,11 +116,11 @@ const formatted = {
       });
 
       const moodLogs = res.data.moodLogs || [];
-  const recentMoods = (moodLogs || []).slice(-7);
+      const recentMoods = (moodLogs || []).slice(-7);
       let avgMood = 3;
 
       if (recentMoods.length > 0) {
-        const moodMap = { Happy: 5, Neutral: 3, Sad: 2, Angry: 1, Stressed: 1 };
+        const moodMap = { Happy: 5, Neutral: 3, Sad: 2, Angry: 1, Tired: 1 };
         const total = recentMoods.reduce(
           (sum, log) => sum + (moodMap[log.mood] || 3),
           0
@@ -140,11 +143,12 @@ const formatted = {
         riskLevel,
         summary,
         suggestions: [
-          "Take a short walk outdoors",
-          "Talk with someone you trust",
-          "Try breathing meditation for 5 minutes",
+          "Take a short walk outdoors 🌿",
+          "Talk with someone you trust 🤝",
+          "Try 5 minutes of deep breathing 🧘‍♀️",
         ],
         timestamp: new Date().toISOString(),
+        source: "Local Fallback",
       });
       setLastChecked(new Date().toLocaleString() + " (Local Analysis)");
     } catch (error) {
@@ -166,7 +170,7 @@ const formatted = {
       case "SERIOUS":
         return { color: "#EF4444", emoji: "😔" };
       default:
-        return { color: "#6B7280", emoji: "🙂" };
+        return { color: "#60A5FA", emoji: "🙂" };
     }
   };
 
@@ -193,6 +197,7 @@ const formatted = {
     );
   };
 
+  // --- Loading screen ---
   if (loading) {
     return (
       <View style={styles.center}>
@@ -203,19 +208,19 @@ const formatted = {
     );
   }
 
-  // Error state: if riskData is null or missing required fields
-  if (!riskData || typeof riskData !== 'object' || !('mindBalanceScore' in riskData)) {
+  // --- Error screen ---
+  if (!riskData || !("mindBalanceScore" in riskData)) {
     return (
       <View style={styles.center}>
         <Ionicons name="warning" size={48} color="#EF4444" style={{ marginBottom: 16 }} />
         <Text style={styles.loadingText}>Unable to load AI risk analysis.</Text>
-        <Text style={styles.loadingSubtext}>Please try refreshing or check your connection.</Text>
+        <Text style={styles.loadingSubtext}>Please try again later or refresh.</Text>
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: Colors.primary, marginTop: 24 }]}
           onPress={onRefresh}
         >
           <Ionicons name="refresh" size={18} color="#fff" />
-          <Text style={{ color: '#fff', fontWeight: '600', marginLeft: 8 }}>Retry</Text>
+          <Text style={{ color: "#fff", fontWeight: "600", marginLeft: 8 }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -234,12 +239,12 @@ const formatted = {
       <View style={styles.header}>
         <Text style={styles.title}>AI Wellness Insights</Text>
         <Text style={styles.subtitle}>
-          Based on your recent 4-day mood logs • Last checked: {lastChecked}
+          Based on your recent mood logs • Last checked: {lastChecked}
         </Text>
       </View>
 
       <Animated.View style={{ opacity: fadeAnim }}>
-        {/* --- AI Risk Card --- */}
+        {/* --- Risk Analysis Card --- */}
         <View style={[styles.card, styles.riskCard]}>
           <View style={styles.riskHeader}>
             <Text style={styles.riskEmoji}>{sev.emoji}</Text>
@@ -267,11 +272,16 @@ const formatted = {
 
           <Text style={styles.summaryText}>{riskData.summary}</Text>
 
-          {/* --- Suggestions --- */}
+          {/* --- Model Source Indicator --- */}
+          <Text style={styles.sourceTag}>
+            🔍 Analysis Powered by: <Text style={{ fontWeight: "700" }}>{riskData.source}</Text>
+          </Text>
+
           <View style={styles.sectionHeader}>
             <Ionicons name="sparkles" size={20} color={Colors.primary} />
             <Text style={styles.sectionTitle}>AI Wellness Suggestions</Text>
           </View>
+
           {Array.isArray(riskData.suggestions) && riskData.suggestions.length > 0 ? (
             riskData.suggestions.map((tip, i) => (
               <View key={i} style={styles.suggestionItem}>
@@ -294,7 +304,7 @@ const formatted = {
           )}
         </View>
 
-        {/* --- History Navigation --- */}
+        {/* --- History + Quick Actions --- */}
         <TouchableOpacity
           style={styles.historyCard}
           onPress={() => navigation.navigate("AIInsightsHistory")}
@@ -303,11 +313,11 @@ const formatted = {
           <Text style={styles.historyText}>View AI Analysis History</Text>
         </TouchableOpacity>
 
-        {/* --- Quick Actions --- */}
         <View style={styles.sectionHeader}>
           <Ionicons name="compass" size={20} color={Colors.primary} />
           <Text style={styles.sectionTitle}>Quick Actions</Text>
         </View>
+
         <View style={styles.navGrid}>
           <TouchableOpacity
             style={styles.navCard}
@@ -345,7 +355,7 @@ const formatted = {
         <View style={styles.disclaimer}>
           <Ionicons name="information-circle" size={16} color={Colors.textSecondary} />
           <Text style={styles.disclaimerText}>
-            This AI analysis provides early risk detection. It is not a medical diagnosis.
+            This AI analysis offers early detection only — not a clinical diagnosis.
           </Text>
         </View>
       </Animated.View>
@@ -357,29 +367,12 @@ const formatted = {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.textPrimary,
-    fontWeight: "600",
-  },
+  loadingText: { marginTop: 12, fontSize: 16, color: Colors.textPrimary, fontWeight: "600" },
   loadingSubtext: { marginTop: 4, fontSize: 14, color: Colors.textSecondary },
   header: { marginBottom: 24, paddingHorizontal: 8 },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 8,
-    textAlign: "center",
-  },
+  title: { fontSize: 28, fontWeight: "700", color: Colors.textPrimary, marginBottom: 8, textAlign: "center" },
   subtitle: { textAlign: "center", color: Colors.textSecondary, fontSize: 14 },
-  card: {
-    backgroundColor: Colors.card,
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 20,
-    elevation: 3,
-  },
+  card: { backgroundColor: Colors.card, padding: 20, borderRadius: 20, marginBottom: 20, elevation: 3 },
   riskCard: { borderLeftWidth: 4, borderLeftColor: "#EF4444" },
   riskHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   riskEmoji: { fontSize: 28, marginRight: 8 },
@@ -387,89 +380,24 @@ const styles = StyleSheet.create({
   progressContent: { alignItems: "center", marginVertical: 12 },
   scoreText: { fontSize: 28, fontWeight: "bold", color: Colors.textPrimary },
   scoreLabel: { fontSize: 14, color: Colors.textSecondary },
-  summaryText: {
-    textAlign: "center",
-    color: Colors.textSecondary,
-    marginTop: 8,
-    marginBottom: 12,
-    fontSize: 15,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginLeft: 6,
-  },
+  summaryText: { textAlign: "center", color: Colors.textSecondary, marginTop: 8, marginBottom: 12, fontSize: 15 },
+  sourceTag: { textAlign: "center", color: "#6B7280", fontSize: 13, marginBottom: 10 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginTop: 16, marginBottom: 10 },
+  sectionTitle: { fontSize: 17, fontWeight: "700", color: Colors.textPrimary, marginLeft: 6 },
   suggestionItem: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   suggestionEmoji: { fontSize: 18, marginRight: 8 },
   suggestionText: { flex: 1, fontSize: 14, color: Colors.textPrimary },
-  actionBtn: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 12,
-  },
+  actionBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", padding: 12, borderRadius: 12, marginTop: 12 },
   emergencyBtn: { backgroundColor: "#EF4444" },
   emergencyBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  historyCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E0F2FE",
-    padding: 14,
-    borderRadius: 14,
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  historyText: {
-    fontSize: 15,
-    color: Colors.primary,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  navGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  navCard: {
-    width: (width - 48) / 2,
-    alignItems: "center",
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    elevation: 2,
-  },
+  historyCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#E0F2FE", padding: 14, borderRadius: 14, justifyContent: "center", marginBottom: 16 },
+  historyText: { fontSize: 15, color: Colors.primary, fontWeight: "600", marginLeft: 8 },
+  navGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 24 },
+  navCard: { width: (width - 48) / 2, alignItems: "center", marginBottom: 16, padding: 16, backgroundColor: Colors.card, borderRadius: 16, elevation: 2 },
   navEmoji: { fontSize: 24 },
-  navText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  disclaimer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 16,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  disclaimerText: {
-    fontSize: 12,
-    color: "#92400E",
-    marginLeft: 8,
-    flex: 1,
-  },
+  navText: { fontSize: 13, fontWeight: "600", color: Colors.textPrimary, textAlign: "center" },
+  disclaimer: { flexDirection: "row", alignItems: "flex-start", padding: 16, backgroundColor: "#FEF3C7", borderRadius: 12, marginBottom: 24 },
+  disclaimerText: { fontSize: 12, color: "#92400E", marginLeft: 8, flex: 1 },
 });
 
 export default RiskDetectionScreen;
