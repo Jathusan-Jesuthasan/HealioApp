@@ -1,0 +1,86 @@
+{
+  "info": {
+    "name": "Healio API Tests",
+    "_postman_id": "c97a6e50-1b70-11ef-9c05-83b6cf001abc",
+    "description": "Quick sanity tests for Healio backend routes (goals, meditations, journals)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🏠 Root Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:5000/", "protocol": "http", "host": ["localhost"], "port": "5000", "path": [""] }
+      }
+    },
+    {
+      "name": "💓 Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:5000/health", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["health"] }
+      }
+    },
+    {
+      "name": "🎯 Add Goal",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"6704abcd1234567890\",\n  \"sessionsPerWeek\": 5,\n  \"minutesPerDay\": 20\n}"
+        },
+        "url": { "raw": "http://localhost:5000/api/goals/add", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "goals", "add"] }
+      }
+    },
+    {
+      "name": "📊 Get Goal by User ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:5000/api/goals/6704abcd1234567890", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "goals", "6704abcd1234567890"] }
+      }
+    },
+    {
+      "name": "🧘 Add Meditation Session",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"6704abcd1234567890\",\n  \"duration\": 5,\n  \"moodBefore\": \"Neutral\",\n  \"moodAfter\": \"Relaxed\"\n}"
+        },
+        "url": { "raw": "http://localhost:5000/api/meditations/add", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "meditations", "add"] }
+      }
+    },
+    {
+      "name": "📜 Get Meditation Sessions by User",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:5000/api/meditations/6704abcd1234567890", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "meditations", "6704abcd1234567890"] }
+      }
+    },
+    {
+      "name": "📘 Add Journal Entry",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"6704abcd1234567890\",\n  \"text\": \"Today I learned how to connect MongoDB to my React Native app!\"\n}"
+        },
+        "url": { "raw": "http://localhost:5000/api/journals/add", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "journals", "add"] }
+      }
+    },
+    {
+      "name": "📘 Get All Journal Entries",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:5000/api/journals/6704abcd1234567890", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "journals", "6704abcd1234567890"] }
+      }
+    }
+  ]
+}
