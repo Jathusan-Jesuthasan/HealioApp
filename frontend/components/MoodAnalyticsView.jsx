@@ -10,13 +10,17 @@ import {
   useWindowDimensions,
   SafeAreaView,
   Modal,
-  Alert,
+  Dimensions
 } from 'react-native';
 import { LineChart, BarChart, PieChart, ProgressChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../utils/Colors';
 
-// ✅ FIXED: Move generateLabels function outside the component
+// ✅ Helper: clean invalid numbers (NaN, undefined, null)
+const cleanNumbers = (arr = [], fallback = 0) =>
+  arr.map(v => (typeof v === 'number' && isFinite(v) ? v : fallback));
+
+// ✅ FIXED: Move generateLabels outside the component
 const generateLabels = (range, count) => {
   switch (range) {
     case '7d':
@@ -37,38 +41,30 @@ const generateLabels = (range, count) => {
 export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidgets, range: propRange, onRangeChange }) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isSmallScreen = screenWidth < 375;
-  const isLargeScreen = screenWidth > 414;
-  
+  const isTablet = screenWidth >= 768;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [range, setRange] = useState(propRange || '7d');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
 
-  // Responsive design values
+  // Enhanced responsive design values
   const responsive = {
     fontSize: {
-      title: isSmallScreen ? 18 : 20,
-      subtitle: isSmallScreen ? 14 : 16,
-      body: isSmallScreen ? 14 : 15,
-      small: isSmallScreen ? 12 : 13,
-    },
-    spacing: {
-      small: isSmallScreen ? 12 : 16,
-      medium: isSmallScreen ? 16 : 20,
-      large: isSmallScreen ? 20 : 24,
-    },
-    icon: {
-      small: isSmallScreen ? 18 : 20,
-      medium: isSmallScreen ? 22 : 24,
-      large: isSmallScreen ? 28 : 32,
+      title: isSmallScreen ? 18 : isTablet ? 24 : 20,
+      subtitle: isSmallScreen ? 14 : isTablet ? 18 : 16,
+      body: isSmallScreen ? 14 : isTablet ? 16 : 15,
+      small: isSmallScreen ? 12 : isTablet ? 14 : 13,
     },
     chart: {
-      width: Math.min(screenWidth - 40, 400),
-      height: isSmallScreen ? 180 : 220,
+      width: Math.min(screenWidth - (isSmallScreen ? 20 : 40), isTablet ? 600 : 400),
+      height: isSmallScreen ? 160 : isTablet ? 240 : 200,
+    },
+    spacing: {
+      card: isSmallScreen ? 12 : isTablet ? 24 : 16,
+      section: isSmallScreen ? 8 : isTablet ? 16 : 12,
     }
   };
 
-  // Sync with parent prop if provided
   React.useEffect(() => {
     if (propRange && propRange !== range) setRange(propRange);
   }, [propRange]);
@@ -81,22 +77,24 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
     }).start();
   }, [dashboard]);
 
-  // Enhanced data processing
+  // ✅ Sanitize chart data before rendering
   const chartData = useMemo(() => {
-    const baseMoods = dashboard?.weeklyMoods || [3, 4, 3, 4, 5, 4, 3];
+    const baseMoods = cleanNumbers(dashboard?.weeklyMoods || [3, 4, 3, 4, 5, 4, 3]);
     const labels = generateLabels(range, baseMoods.length);
     return {
       labels,
-      datasets: [{ 
-        data: baseMoods,
-        color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-        strokeWidth: 2
-      }],
+      datasets: [
+        {
+          data: baseMoods,
+          color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
+          strokeWidth: isSmallScreen ? 1 : 2,
+        },
+      ],
     };
-  }, [dashboard, range]);
+  }, [dashboard, range, isSmallScreen]);
 
   const calculateMoodStability = () => {
-    const moods = dashboard?.weeklyMoods || [];
+    const moods = cleanNumbers(dashboard?.weeklyMoods || []);
     if (moods.length < 2) return 100;
     const mean = moods.reduce((a, b) => a + b, 0) / moods.length;
     const variance = moods.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / moods.length;
@@ -114,44 +112,28 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
 
   const getMoodDistribution = () => {
     const moods = dashboard?.moodLogs?.map(m => m.mood) || [];
-    const dist = { 
-      '😊 Happy': 0, 
-      '😐 Neutral': 0, 
-      '😢 Sad': 0, 
-      '😠 Frustrated': 0, 
-      '😴 Tired': 0,
-      '😰 Anxious': 0
-    };
-    
-    moods.forEach(m => {
-      if (dist[m] !== undefined) dist[m]++;
-    });
-    
+    const dist = { '😊 Happy': 0, '😐 Neutral': 0, '😢 Sad': 0, '😠 Frustrated': 0, '😴 Tired': 0, '😰 Anxious': 0 };
+    moods.forEach(m => { if (dist[m] !== undefined) dist[m]++; });
     return Object.entries(dist)
       .filter(([_, count]) => count > 0)
       .map(([name, population], index) => ({
         name,
         population,
         color: Colors.chartColors?.[index % Colors.chartColors.length] || 
-               ['#4ADE80', '#60A5FA', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'][index],
+          ['#4ADE80', '#60A5FA', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'][index],
         legendFontColor: Colors.textPrimary,
         legendFontSize: isSmallScreen ? 10 : 12,
       }));
   };
 
   const getProgressData = () => {
-    const stability = calculateMoodStability() / 100;
-    const positivity = dashboard?.mindBalanceScore ? dashboard.mindBalanceScore / 100 : 0.7;
-    const consistency = dashboard?.moodLogs ? Math.min(dashboard.moodLogs.length / 30, 1) : 0.5;
-    
+    const stability = Math.max(0, Math.min(1, calculateMoodStability() / 100 || 0));
+    const positivity = Math.max(0, Math.min(1, (dashboard?.mindBalanceScore || 0) / 100));
+    const consistency = Math.max(0, Math.min(1, dashboard?.moodLogs ? dashboard.moodLogs.length / 30 : 0.5));
     return {
       labels: ['Stability', 'Positivity', 'Consistency'],
-      data: [stability, positivity, consistency],
-      colors: [
-        Colors.chartColors?.[0] || '#4ADE80',
-        Colors.chartColors?.[1] || '#60A5FA', 
-        Colors.chartColors?.[2] || '#F59E0B'
-      ]
+      data: cleanNumbers([stability, positivity, consistency]),
+      colors: ['#4ADE80', '#60A5FA', '#F59E0B'],
     };
   };
 
@@ -160,17 +142,14 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
       Monday: 3.2, Tuesday: 3.8, Wednesday: 4.1, Thursday: 3.9,
       Friday: 4.3, Saturday: 4.5, Sunday: 4.0
     };
-    
     return {
-      labels: Object.keys(breakdown).map(day => day.slice(0, 3)),
-      datasets: [{
-        data: Object.values(breakdown),
-      }],
+      labels: Object.keys(breakdown).map(day => day.slice(0, isSmallScreen ? 2 : 3)),
+      datasets: [{ data: cleanNumbers(Object.values(breakdown)) }],
     };
   };
 
   const getRiskTrendData = () => {
-    const risks = riskHistory.length > 0 ? riskHistory : [2, 3, 1, 2, 1, 3, 2];
+    const risks = cleanNumbers(riskHistory.length > 0 ? riskHistory : [2, 3, 1, 2, 1, 3, 2]);
     return {
       labels: generateLabels(range, risks.length),
       datasets: [{
@@ -180,110 +159,117 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
     };
   };
 
-  const getWellnessStreak = () => {
-    const logs = dashboard?.moodLogs || [];
-    return Math.min(logs.length, 7); // Mock streak for demo
-  };
+  const getWellnessStreak = () => Math.min((dashboard?.moodLogs || []).length, 7);
 
   const chartConfig = {
-    backgroundColor: '#FFFFFF',
-    backgroundGradientFrom: '#FFFFFF',
-    backgroundGradientTo: '#FFFFFF',
+    backgroundColor: Colors.card,
+    backgroundGradientFrom: Colors.card,
+    backgroundGradientTo: Colors.card,
     decimalPlaces: 1,
     color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
     labelColor: () => Colors.textSecondary,
     fillShadowGradient: Colors.secondary,
     fillShadowGradientOpacity: 0.15,
-    propsForDots: { r: isSmallScreen ? '3' : '4', strokeWidth: '2' },
+    propsForDots: { 
+      r: isSmallScreen ? '3' : isTablet ? '5' : '4', 
+      strokeWidth: isSmallScreen ? '1' : '2' 
+    },
     style: { borderRadius: 16 },
+    propsForLabels: {
+      fontSize: isSmallScreen ? 10 : 12,
+    },
+    propsForVerticalLabels: {
+      fontSize: isSmallScreen ? 9 : 11,
+    },
+    propsForHorizontalLabels: {
+      fontSize: isSmallScreen ? 9 : 11,
+    },
   };
 
-  const handleRangeChange = (newRange) => {
+  const handleRangeChange = newRange => {
     setRange(newRange);
     setFilterModalVisible(false);
     if (onRangeChange) onRangeChange(newRange);
   };
 
-  const toggleSection = (section) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
+  const toggleSection = section => setExpandedSection(expandedSection === section ? null : section);
 
-  const TimeRangeFilter = () => (
-    <Modal
-      visible={filterModalVisible}
-      animationType="fade"
-      transparent
-      onRequestClose={() => setFilterModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { fontSize: responsive.fontSize.title }]}>
-              View Time Period
-            </Text>
-            <TouchableOpacity 
-              onPress={() => setFilterModalVisible(false)}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={responsive.icon.medium} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.filterOptions}>
-            {[
-              { label: 'Past Week', value: '7d', icon: 'calendar-outline', color: '#4ADE80' },
-              { label: 'Past Month', value: '30d', icon: 'calendar', color: '#60A5FA' },
-              { label: '3 Months', value: '90d', icon: 'business', color: '#F59E0B' },
-              { label: '6 Months', value: '180d', icon: 'bar-chart', color: '#8B5CF6' },
-              { label: 'Past Year', value: '365d', icon: 'trophy', color: '#EF4444' },
-            ].map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.filterOption,
-                  range === option.value && [styles.filterOptionActive, { borderLeftColor: option.color }]
-                ]}
-                onPress={() => handleRangeChange(option.value)}
-              >
-                <View style={styles.filterOptionContent}>
-                  <Ionicons 
-                    name={option.icon} 
-                    size={responsive.icon.small} 
-                    color={range === option.value ? '#fff' : option.color} 
-                  />
-                  <Text style={[
-                    styles.filterOptionText,
-                    { fontSize: responsive.fontSize.body },
-                    range === option.value && styles.filterOptionTextActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </View>
-                {range === option.value && (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+  // Enhanced Metric Card with better icons
+  const MetricCard = ({ icon, value, label, trend, color }) => (
+    <View style={[
+      styles.metricCard, 
+      isSmallScreen && styles.metricCardSmall,
+      isTablet && styles.metricCardTablet
+    ]}>
+      <View style={[
+        styles.metricIcon, 
+        { backgroundColor: `${color}20` },
+        isSmallScreen && styles.metricIconSmall,
+        isTablet && styles.metricIconTablet
+      ]}>
+        <Ionicons name={icon} size={isSmallScreen ? 16 : isTablet ? 24 : 20} color={color} />
       </View>
-    </Modal>
+      <Text style={[
+        styles.metricValue,
+        { fontSize: responsive.fontSize.title },
+        isSmallScreen && styles.metricValueSmall
+      ]}>{value}</Text>
+      <Text style={[
+        styles.metricLabel,
+        { fontSize: responsive.fontSize.small },
+        isSmallScreen && styles.metricLabelSmall
+      ]}>{label}</Text>
+      {trend && (
+        <Text style={[
+          styles.metricTrend,
+          { fontSize: responsive.fontSize.small - 1 },
+          isSmallScreen && styles.metricTrendSmall
+        ]}>{trend}</Text>
+      )}
+    </View>
   );
 
-  const MetricCard = ({ icon, value, label, trend, color }) => (
-    <View style={styles.metricCard}>
-      <View style={[styles.metricIcon, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon} size={responsive.icon.small} color={color} />
-      </View>
-      <Text style={[styles.metricValue, { fontSize: responsive.fontSize.title }]}>
-        {value}
+  // Time Range Selector Component
+  const TimeRangeSelector = () => (
+    <View style={styles.rangeSelector}>
+      <Text style={[styles.rangeLabel, { fontSize: responsive.fontSize.body }]}>
+        Time Range:
       </Text>
-      <Text style={[styles.metricLabel, { fontSize: responsive.fontSize.small }]}>
-        {label}
-      </Text>
-      <Text style={[styles.metricTrend, { fontSize: responsive.fontSize.small }]}>
-        {trend}
-      </Text>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rangeScrollContent}
+      >
+        {['7d', '30d', '90d', '180d', '365d'].map((timeRange) => (
+          <TouchableOpacity
+            key={timeRange}
+            style={[
+              styles.rangeButton,
+              range === timeRange && styles.rangeButtonActive,
+              isSmallScreen && styles.rangeButtonSmall
+            ]}
+            onPress={() => handleRangeChange(timeRange)}
+          >
+            <Text style={[
+              styles.rangeButtonText,
+              range === timeRange && styles.rangeButtonTextActive,
+              isSmallScreen && styles.rangeButtonTextSmall
+            ]}>
+              {timeRange}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <TouchableOpacity 
+        style={[styles.filterButton, isSmallScreen && styles.filterButtonSmall]}
+        onPress={() => setFilterModalVisible(true)}
+      >
+        <Ionicons 
+          name="filter" 
+          size={isSmallScreen ? 16 : 18} 
+          color={Colors.textSecondary} 
+        />
+      </TouchableOpacity>
     </View>
   );
 
@@ -292,492 +278,296 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
       <Animated.ScrollView
         style={[styles.container, { opacity: fadeAnim }]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isSmallScreen && styles.scrollContentSmall,
+          isTablet && styles.scrollContentTablet
+        ]}
       >
-        {/* Time Range Header */}
-        <View style={styles.timeRangeHeader}>
-          <View>
-            <Text style={[styles.timeRangeTitle, { fontSize: responsive.fontSize.body }]}>
-              Showing Data For
-            </Text>
-            <Text style={[styles.timeRangeValue, { fontSize: responsive.fontSize.subtitle }]}>
-              {range === '7d' ? 'Past Week' : 
-               range === '30d' ? 'Past Month' : 
-               range === '90d' ? '3 Months' : 
-               range === '180d' ? '6 Months' : 'Past Year'}
+
+        {/* Header with Time Range Selector */}
+        <View style={styles.header}>
+          <View style={styles.headerTitle}>
+            <Ionicons name="analytics" size={24} color={Colors.primary} />
+            <Text style={[styles.headerTitleText, { fontSize: responsive.fontSize.title + 2 }]}>
+              Mood Analytics
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setFilterModalVisible(true)}
-          >
-            <Ionicons name="options" size={responsive.icon.small} color={Colors.secondary} />
-            <Text style={[styles.filterButtonText, { fontSize: responsive.fontSize.small }]}>
-              Change
-            </Text>
-          </TouchableOpacity>
+          <TimeRangeSelector />
         </View>
 
-        {/* Key Metrics Grid */}
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            icon="heart"
-            value={`${dashboard?.mindBalanceScore || 0}/100`}
-            label="Wellness Score"
-            trend="↑ Building"
-            color={Colors.accent}
-          />
+        {/* Quick Stats Row */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.metricsRow}
+          contentContainerStyle={styles.metricsRowContent}
+        >
           <MetricCard
             icon="trending-up"
             value={`${calculateMoodStability()}%`}
-            label="Emotional Stability"
-            trend="Consistent"
-            color={Colors.secondary}
+            label="Stability"
+            trend="+5%"
+            color="#4ADE80"
           />
           <MetricCard
-            icon="document-text"
-            value={dashboard?.moodLogs?.length || 0}
-            label="Entries"
-            trend="Keep going!"
-            color={Colors.warning}
+            icon="flash"
+            value={getWellnessStreak()}
+            label="Day Streak"
+            trend="🔥"
+            color="#F59E0B"
           />
           <MetricCard
-            icon="flame"
-            value={`${getWellnessStreak()} days`}
-            label="Tracking Streak"
-            trend="🔥 Active"
+            icon="heart"
+            value={`${dashboard?.mindBalanceScore || 75}%`}
+            label="Wellness"
             color="#EF4444"
           />
-        </View>
+          <MetricCard
+            icon="calendar"
+            value={dashboard?.moodLogs?.length || 0}
+            label="Entries"
+            color="#60A5FA"
+          />
+        </ScrollView>
 
-        {/* Mood Trend Chart */}
+        {/* Mood Trend */}
         {selectedWidgets.moodChart && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('moodTrend')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  📈 Your Mood Journey
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'moodTrend' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'moodTrend' || expandedSection === null) && (
-              <>
-                <Text style={[styles.sectionDescription, { fontSize: responsive.fontSize.body }]}>
-                  How your emotions have changed over time
-                </Text>
-                <LineChart
-                  data={chartData}
-                  width={responsive.chart.width}
-                  height={responsive.chart.height}
-                  yAxisSuffix="/5"
-                  yAxisInterval={1}
-                  chartConfig={chartConfig}
-                  bezier
-                  style={styles.chart}
-                />
-              </>
-            )}
+          <View style={[styles.card, isSmallScreen && styles.cardSmall]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="pulse" size={20} color={Colors.primary} />
+              <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
+                Your Mood Journey
+              </Text>
+            </View>
+            <LineChart
+              data={chartData}
+              width={responsive.chart.width}
+              height={responsive.chart.height}
+              yAxisSuffix="/5"
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+              withVerticalLines={!isSmallScreen}
+              withHorizontalLines={!isSmallScreen}
+            />
           </View>
         )}
 
-        {/* Progress Overview */}
-        {selectedWidgets.progressChart && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('progress')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  🎯 Wellness Progress
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'progress' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'progress' || expandedSection === null) && (
-              <>
-                <Text style={[styles.sectionDescription, { fontSize: responsive.fontSize.body }]}>
-                  Track your emotional wellness journey
-                </Text>
-                <ProgressChart
-                  data={getProgressData()}
-                  width={responsive.chart.width}
-                  height={isSmallScreen ? 160 : 200}
-                  strokeWidth={12}
-                  radius={36}
-                  chartConfig={{
-                    ...chartConfig,
-                    color: (opacity = 1, index) => {
-                      const colors = getProgressData().colors;
-                      const hex = colors[index] || '#4A90E2';
-                      const r = parseInt(hex.slice(1, 3), 16);
-                      const g = parseInt(hex.slice(3, 5), 16);
-                      const b = parseInt(hex.slice(5, 7), 16);
-                      return `rgba(${r},${g},${b},${opacity})`;
-                    },
-                  }}
-                  hideLegend={false}
-                  style={styles.chart}
-                />
-              </>
-            )}
-          </View>
-        )}
-
-        {/* Mood Distribution */}
-        {selectedWidgets.moodDistribution && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('distribution')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  📊 Emotional Balance
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'distribution' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'distribution' || expandedSection === null) && (
-              <>
-                <Text style={[styles.sectionDescription, { fontSize: responsive.fontSize.body }]}>
-                  Breakdown of your different emotional states
-                </Text>
-                <PieChart
-                  data={getMoodDistribution()}
-                  width={responsive.chart.width}
-                  height={200}
-                  chartConfig={chartConfig}
-                  accessor="population"
-                  backgroundColor="transparent"
-                  paddingLeft="15"
-                  style={styles.chart}
-                  absolute={false}
-                />
-              </>
-            )}
-          </View>
-        )}
-
-        {/* Weekly Pattern */}
+        {/* Weekly Breakdown */}
         {selectedWidgets.weeklyBreakdown && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('weekly')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  📅 Weekly Rhythm
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'weekly' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'weekly' || expandedSection === null) && (
-              <>
-                <Text style={[styles.sectionDescription, { fontSize: responsive.fontSize.body }]}>
-                  Your mood patterns across the week
-                </Text>
-                <BarChart
-                  data={getWeeklyBreakdownData()}
-                  width={responsive.chart.width}
-                  height={responsive.chart.height}
-                  yAxisLabel=""
-                  yAxisSuffix="/5"
-                  chartConfig={{
-                    ...chartConfig,
-                    color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                    fillShadowGradient: '#8B5CF6',
-                  }}
-                  style={styles.chart}
-                  showValuesOnTopOfBars
-                />
-              </>
-            )}
+          <View style={[styles.card, isSmallScreen && styles.cardSmall]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="calendar" size={20} color={Colors.primary} />
+              <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
+                Weekly Rhythm
+              </Text>
+            </View>
+            <BarChart
+              data={getWeeklyBreakdownData()}
+              width={responsive.chart.width}
+              height={responsive.chart.height}
+              yAxisSuffix="/5"
+              chartConfig={chartConfig}
+              showValuesOnTopOfBars
+              style={styles.chart}
+              fromZero
+            />
           </View>
         )}
 
-        {/* Wellness Alerts */}
+        {/* Progress Chart */}
+        {selectedWidgets.progressChart && (
+          <View style={[styles.card, isSmallScreen && styles.cardSmall]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="trophy" size={20} color={Colors.primary} />
+              <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
+                Wellness Progress
+              </Text>
+            </View>
+            <ProgressChart
+              data={getProgressData()}
+              width={responsive.chart.width}
+              height={isSmallScreen ? 160 : 200}
+              strokeWidth={isSmallScreen ? 10 : 12}
+              radius={isSmallScreen ? 28 : 36}
+              chartConfig={chartConfig}
+              hideLegend={false}
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {/* Risk Trend */}
         {selectedWidgets.riskTrend && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('alerts')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  ⚠️ Wellness Patterns
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'alerts' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'alerts' || expandedSection === null) && (
-              <>
-                <Text style={[styles.sectionDescription, { fontSize: responsive.fontSize.body }]}>
-                  Tracking patterns that need attention
-                </Text>
-                <LineChart
-                  data={getRiskTrendData()}
-                  width={responsive.chart.width}
-                  height={responsive.chart.height - 20}
-                  yAxisSuffix="/5"
-                  chartConfig={{
-                    ...chartConfig,
-                    color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-                    fillShadowGradient: '#EF4444',
-                  }}
-                  bezier
-                  style={styles.chart}
-                />
-              </>
-            )}
+          <View style={[styles.card, isSmallScreen && styles.cardSmall]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="warning" size={20} color="#EF4444" />
+              <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
+                Wellness Patterns
+              </Text>
+            </View>
+            <LineChart
+              data={getRiskTrendData()}
+              width={responsive.chart.width}
+              height={responsive.chart.height}
+              yAxisSuffix="/5"
+              chartConfig={{
+                ...chartConfig,
+                color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+              }}
+              bezier
+              style={styles.chart}
+              withVerticalLines={!isSmallScreen}
+              withHorizontalLines={!isSmallScreen}
+            />
           </View>
         )}
 
-        {/* Sleep & Mood Correlation */}
-        {selectedWidgets.sleepCorrelation && dashboard?.sleepCorrelation && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('sleep')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  😴 Sleep Connection
+        {/* Filter Modal */}
+        <Modal
+          visible={filterModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setFilterModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[
+              styles.modalContent,
+              isSmallScreen && styles.modalContentSmall
+            ]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { fontSize: responsive.fontSize.title }]}>
+                  Filter Analytics
                 </Text>
-                <Ionicons 
-                  name={expandedSection === 'sleep' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
+                <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'sleep' || expandedSection === null) && (
-              <View style={styles.correlationCard}>
-                <View style={styles.correlationScore}>
-                  <Text style={styles.correlationValue}>
-                    {Math.round(dashboard.sleepCorrelation.correlation * 100)}%
-                  </Text>
-                  <Text style={[styles.correlationLabel, { fontSize: responsive.fontSize.small }]}>
-                    Sleep-Mood Connection
-                  </Text>
-                </View>
-                <Text style={[styles.correlationMessage, { fontSize: responsive.fontSize.body }]}>
-                  {dashboard.sleepCorrelation.message}
-                </Text>
-                <Text style={[styles.correlationTip, { fontSize: responsive.fontSize.small }]}>
-                  💡 Tip: {dashboard.sleepCorrelation.tip || "Aim for 7-9 hours of quality sleep"}
-                </Text>
-              </View>
-            )}
+              {/* Add filter options here */}
+            </View>
           </View>
-        )}
+        </Modal>
 
-        {/* Mood Influencers */}
-        {selectedWidgets.factors && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('factors')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  🔍 Mood Influencers
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'factors' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'factors' || expandedSection === null) && (
-              <View style={styles.factorsContainer}>
-                {getTopFactors().length > 0 ? (
-                  getTopFactors().map(([factor, count], index) => (
-                    <View key={factor} style={styles.factorTag}>
-                      <View style={styles.factorHeader}>
-                        <View style={styles.factorRank}>
-                          <Text style={styles.factorRankText}>#{index + 1}</Text>
-                        </View>
-                        <Text style={[styles.factorText, { fontSize: responsive.fontSize.body }]}>
-                          {factor}
-                        </Text>
-                      </View>
-                      <Text style={[styles.factorCount, { fontSize: responsive.fontSize.small }]}>
-                        {count} {count === 1 ? 'time' : 'times'}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyFactors}>
-                    <Ionicons name="analytics" size={40} color={Colors.textSecondary} />
-                    <Text style={[styles.noData, { fontSize: responsive.fontSize.body }]}>
-                      Track factors with your mood entries to see patterns here
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Activity Impact */}
-        {selectedWidgets.activityImpact && dashboard?.activityImpact && (
-          <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.cardHeader}
-              onPress={() => toggleSection('activities')}
-            >
-              <View style={styles.cardTitleRow}>
-                <Text style={[styles.sectionTitle, { fontSize: responsive.fontSize.title }]}>
-                  ⚡ Activity Impact
-                </Text>
-                <Ionicons 
-                  name={expandedSection === 'activities' ? 'chevron-up' : 'chevron-down'} 
-                  size={responsive.icon.small} 
-                  color={Colors.textSecondary} 
-                />
-              </View>
-            </TouchableOpacity>
-            
-            {(expandedSection === 'activities' || expandedSection === null) && (
-              <View style={styles.activityContainer}>
-                <View style={styles.activitySection}>
-                  <Text style={[styles.activityTitle, { fontSize: responsive.fontSize.body }]}>
-                    🌟 Positive Influences
-                  </Text>
-                  {dashboard.activityImpact.positive.map(activity => (
-                    <View key={activity} style={styles.activityItem}>
-                      <Ionicons name="checkmark-circle" size={responsive.icon.small} color="#10B981" />
-                      <Text style={[styles.activityText, { fontSize: responsive.fontSize.body }]}>
-                        {activity}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                <View style={styles.activitySection}>
-                  <Text style={[styles.activityTitle, { fontSize: responsive.fontSize.body }]}>
-                    🛑 Challenges
-                  </Text>
-                  {dashboard.activityImpact.negative.map(activity => (
-                    <View key={activity} style={styles.activityItem}>
-                      <Ionicons name="alert-circle" size={responsive.icon.small} color="#EF4444" />
-                      <Text style={[styles.activityText, { fontSize: responsive.fontSize.body }]}>
-                        {activity}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        <View style={styles.spacer} />
       </Animated.ScrollView>
-
-      <TimeRangeFilter />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.primary,
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: Colors.background || '#F8FAFC' 
   },
-  container: {
-    flex: 1,
+  container: { 
+    flex: 1 
   },
-  scrollContent: {
+  scrollContent: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 8 
+  },
+  scrollContentSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  scrollContentTablet: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  header: {
+    marginBottom: 16,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerTitleText: {
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginLeft: 8,
+  },
+  rangeSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rangeLabel: {
+    color: Colors.textSecondary,
+    marginRight: 12,
+  },
+  rangeScrollContent: {
+    flexGrow: 1,
+  },
+  rangeButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-  },
-  timeRangeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderRadius: 20,
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  timeRangeTitle: {
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  timeRangeValue: {
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${Colors.secondary}15`,
+  rangeButtonSmall: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  filterButtonText: {
-    color: Colors.secondary,
+  rangeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  rangeButtonText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
     fontWeight: '500',
   },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  rangeButtonTextSmall: {
+    fontSize: 11,
+  },
+  rangeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  filterButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  filterButtonSmall: {
+    padding: 6,
+  },
+  metricsRow: {
     marginBottom: 16,
-    gap: 12,
+  },
+  metricsRowContent: {
+    paddingRight: 16,
   },
   metricCard: {
-    width: '48%',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
     alignItems: 'center',
+    padding: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    marginRight: 12,
+    minWidth: 100,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  metricCardSmall: {
+    padding: 12,
+    minWidth: 85,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  metricCardTablet: {
+    padding: 20,
+    minWidth: 120,
+    borderRadius: 16,
+    marginRight: 16,
   },
   metricIcon: {
     width: 40,
@@ -787,19 +577,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  metricIconSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginBottom: 6,
+  },
+  metricIconTablet: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginBottom: 12,
+  },
   metricValue: {
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 4,
   },
+  metricValueSmall: {
+    marginBottom: 2,
+  },
   metricLabel: {
     color: Colors.textSecondary,
-    marginBottom: 2,
     textAlign: 'center',
+  },
+  metricLabelSmall: {
+    fontSize: 11,
   },
   metricTrend: {
     color: Colors.accent,
     fontWeight: '500',
+    marginTop: 2,
+  },
+  metricTrendSmall: {
+    marginTop: 1,
   },
   card: {
     backgroundColor: Colors.card,
@@ -812,139 +623,39 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  cardHeader: {
+  cardSmall: {
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
   },
-  cardTitleRow: {
+  cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  sectionDescription: {
-    color: Colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
+    marginLeft: 8,
   },
   chart: {
     borderRadius: 12,
     marginVertical: 4,
   },
-  factorsContainer: {
-    gap: 8,
-  },
-  factorTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 12,
-  },
-  factorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  factorRank: {
-    backgroundColor: Colors.secondary,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  factorRankText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  factorText: {
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-  },
-  factorCount: {
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  emptyFactors: {
-    alignItems: 'center',
-    padding: 20,
-    gap: 12,
-  },
-  noData: {
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  correlationCard: {
-    backgroundColor: `${Colors.secondary}08`,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  correlationScore: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  correlationValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.secondary,
-    marginBottom: 4,
-  },
-  correlationLabel: {
-    color: Colors.textSecondary,
-  },
-  correlationMessage: {
-    color: Colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  correlationTip: {
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  activityContainer: {
-    gap: 16,
-  },
-  activitySection: {
-    gap: 8,
-  },
-  activityTitle: {
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 6,
-  },
-  activityText: {
-    color: Colors.textPrimary,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalContentSmall: {
+    padding: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -953,39 +664,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontWeight: '700',
+    fontWeight: '600',
     color: Colors.textPrimary,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  filterOptions: {
-    gap: 8,
-  },
-  filterOption: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
-  },
-  filterOptionActive: {
-    backgroundColor: Colors.secondary,
-  },
-  filterOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  filterOptionText: {
-    color: Colors.textPrimary,
-    fontWeight: '500',
-    flex: 1,
-  },
-  filterOptionTextActive: {
-    color: '#FFFFFF',
-  },
-  spacer: {
-    height: 20,
   },
 });

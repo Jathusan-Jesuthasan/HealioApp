@@ -13,8 +13,9 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
+import { LineChart } from "react-native-chart-kit";
 
-// ✅ Healio color palette (UX-aligned)
+// ✅ Healio Color System
 const Colors = {
   primary: "#4A90E2",
   secondary: "#10B981",
@@ -24,6 +25,9 @@ const Colors = {
   textSecondary: "#64748B",
   warning: "#F59E0B",
   danger: "#EF4444",
+  purple: "#8B5CF6",
+  pink: "#EC4899",
+  gray: "#94A3B8",
 };
 
 const AIInsightsHistory = ({ navigation }) => {
@@ -63,15 +67,23 @@ const AIInsightsHistory = ({ navigation }) => {
     fetchHistory();
   };
 
-  // ✅ Severity color mapping
+  // 🎨 Emotion/Risk color mapping
   const getSeverityColor = (level) => {
-    switch (level) {
+    switch (level?.toUpperCase()) {
       case "LOW":
         return { color: Colors.secondary, emoji: "😊" };
       case "MODERATE":
         return { color: Colors.warning, emoji: "😐" };
       case "SERIOUS":
-        return { color: Colors.danger, emoji: "😔" };
+        return { color: Colors.danger, emoji: "🚨" };
+      case "STRESS":
+        return { color: Colors.warning, emoji: "😣" };
+      case "ANGER":
+        return { color: Colors.pink, emoji: "😡" };
+      case "ANXIETY":
+        return { color: Colors.purple, emoji: "😰" };
+      case "TIREDNESS":
+        return { color: Colors.gray, emoji: "😴" };
       default:
         return { color: Colors.textSecondary, emoji: "🙂" };
     }
@@ -86,6 +98,22 @@ const AIInsightsHistory = ({ navigation }) => {
     );
   }
 
+  // 🧠 Prepare chart data (last 7 entries safely)
+  const recent = history.slice(0, 7).reverse();
+
+  const trendData = recent.map((item) => {
+    const val = Number(item.wellnessIndex);
+    return !isNaN(val) && val > 0 ? val : 0;
+  });
+
+  const trendLabels = recent.map((item) => {
+    const d = new Date(item.date);
+    return isNaN(d) ? "—" : `${d.getDate()}/${d.getMonth() + 1}`;
+  });
+
+  // 🧩 Safe rendering of chart (only if there’s valid data)
+  const hasValidData = trendData.filter((v) => v > 0).length >= 2;
+
   return (
     <ScrollView
       style={styles.container}
@@ -94,41 +122,74 @@ const AIInsightsHistory = ({ navigation }) => {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>AI Insights History</Text>
+        <Text style={styles.title}>🤖 AI Insights History</Text>
         <Text style={styles.subtitle}>
-          Review your previous AI-generated mood and risk analyses.
+          Track your AI-generated wellness and emotion insights over time.
         </Text>
       </View>
 
-      {/* Empty state */}
+      {/* Mini Trend Chart */}
+      {hasValidData && (
+        <View style={styles.trendBox}>
+          <Text style={styles.trendTitle}>Mind Balance Trend (Last 7)</Text>
+          <LineChart
+            data={{
+              labels: trendLabels,
+              datasets: [{ data: trendData }],
+            }}
+            width={340}
+            height={180}
+            fromZero
+            chartConfig={{
+              backgroundColor: Colors.card,
+              backgroundGradientFrom: Colors.card,
+              backgroundGradientTo: Colors.card,
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(74,144,226,${opacity})`,
+              labelColor: () => Colors.textSecondary,
+              propsForDots: { r: "4", strokeWidth: "2", stroke: Colors.primary },
+              fillShadowGradient: Colors.secondary,
+              fillShadowGradientOpacity: 0.1,
+            }}
+            bezier
+            style={styles.chart}
+          />
+        </View>
+      )}
+
+      {/* Empty State */}
       {history.length === 0 ? (
         <View style={styles.emptyBox}>
           <Ionicons name="time-outline" size={56} color={Colors.textSecondary} />
           <Text style={styles.emptyText}>No AI insights yet 🕓</Text>
           <Text style={styles.emptySubtext}>
-            Log moods regularly to help AI learn and generate insights for you.
+            Log moods regularly to help Healio learn your emotional patterns.
           </Text>
         </View>
       ) : (
         history.map((item, index) => {
           const sev = getSeverityColor(item.riskLevel);
+          const parsedDate = new Date(item.date);
+          const formattedDate = isNaN(parsedDate)
+            ? "Unknown Date"
+            : parsedDate.toLocaleString();
+
           return (
             <View key={index} style={styles.card}>
-              {/* Card Header */}
+              {/* Header Row */}
               <View style={styles.cardHeader}>
                 <Text style={styles.emoji}>{sev.emoji}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.dateText}>
-                    {new Date(item.date).toLocaleString()}
-                  </Text>
+                  <Text style={styles.dateText}>{formattedDate}</Text>
                   <Text style={[styles.levelText, { color: sev.color }]}>
-                    {item.riskLevel} RISK
+                    {item.riskLevel?.toUpperCase() || "UNKNOWN"}
                   </Text>
                 </View>
+
                 <AnimatedCircularProgress
                   size={70}
                   width={8}
-                  fill={item.wellnessIndex || 50}
+                  fill={Number(item.wellnessIndex) || 0}
                   tintColor={sev.color}
                   backgroundColor="#E5E7EB"
                   rotation={0}
@@ -136,14 +197,16 @@ const AIInsightsHistory = ({ navigation }) => {
                 >
                   {() => (
                     <Text style={styles.scoreText}>
-                      {item.wellnessIndex || 50}%
+                      {Math.round(Number(item.wellnessIndex) || 0)}%
                     </Text>
                   )}
                 </AnimatedCircularProgress>
               </View>
 
               {/* Summary */}
-              <Text style={styles.summary}>{item.summary}</Text>
+              <Text style={styles.summary}>
+                {item.summary || "No AI summary generated for this entry."}
+              </Text>
 
               {/* Suggestions */}
               {item.suggestions && item.suggestions.length > 0 && (
@@ -156,33 +219,32 @@ const AIInsightsHistory = ({ navigation }) => {
                   ))}
                 </View>
               )}
+
+              <Text style={styles.sourceText}>
+                🔍 Source: {item.source || "Hybrid AI Engine"}
+              </Text>
             </View>
           );
         })
       )}
 
-      {/* Back button */}
+      {/* Back Button */}
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={18} color="#fff" />
-        <Text style={styles.backBtnText}>Back to AI Risk Detection</Text>
+        <Text style={styles.backBtnText}>Back to Dashboard</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 };
 
+// ✅ Styles
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 10, fontSize: 15, color: Colors.textPrimary },
 
-  // Header
   header: { marginBottom: 20, alignItems: "center" },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 6,
-  },
+  title: { fontSize: 26, fontWeight: "700", color: Colors.textPrimary, marginBottom: 6 },
   subtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
@@ -190,7 +252,24 @@ const styles = StyleSheet.create({
     width: "90%",
   },
 
-  // Card styling
+  // 📊 Trend Chart
+  trendBox: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 20,
+    elevation: 3,
+  },
+  trendTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  chart: { borderRadius: 12 },
+
+  // 🪄 Card Design
   card: {
     backgroundColor: Colors.card,
     padding: 18,
@@ -218,18 +297,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Suggestion section
   suggestionSection: {
     backgroundColor: "#EFF6FF",
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
+    marginBottom: 6,
   },
-  suggestionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 2,
-  },
+  suggestionItem: { flexDirection: "row", alignItems: "center", marginVertical: 2 },
   suggestionText: {
     marginLeft: 6,
     fontSize: 13,
@@ -237,8 +312,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexWrap: "wrap",
   },
+  sourceText: { fontSize: 11, color: Colors.textSecondary, marginTop: 4, textAlign: "right" },
 
-  // Empty state
   emptyBox: { alignItems: "center", marginTop: 60, paddingHorizontal: 20 },
   emptyText: { fontSize: 18, fontWeight: "600", color: Colors.textPrimary },
   emptySubtext: {
@@ -248,7 +323,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  // Back button
   backBtn: {
     flexDirection: "row",
     alignItems: "center",

@@ -15,6 +15,8 @@ import {
   useWindowDimensions,
   SafeAreaView,
   Animated,
+  StatusBar,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getDashboard, getRiskHistory } from '../services/analytics';
@@ -22,9 +24,12 @@ import { Colors } from '../utils/Colors';
 import MoodAnalyticsView from '../components/MoodAnalyticsView';
 import MoodReportView from '../components/MoodReportView';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export default function MoodStatsScreen({ navigation }) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isSmallScreen = screenWidth < 375;
+  const isTablet = screenWidth >= 768;
   const isLargeScreen = screenWidth > 414;
   
   const [loading, setLoading] = useState(true);
@@ -49,35 +54,64 @@ export default function MoodStatsScreen({ navigation }) {
     activityImpact: true,
   });
 
-  // Enhanced filters with mental health focus
+  // Enhanced responsive design values
+  const responsive = {
+    fontSize: {
+      title: isSmallScreen ? 20 : isTablet ? 26 : 22,
+      subtitle: isSmallScreen ? 12 : isTablet ? 15 : 13,
+      tab: isSmallScreen ? 13 : isTablet ? 16 : 14,
+      filter: isSmallScreen ? 11 : isTablet ? 14 : 12,
+      metric: isSmallScreen ? 16 : isTablet ? 20 : 18,
+      body: isSmallScreen ? 14 : isTablet ? 16 : 15,
+    },
+    spacing: {
+      small: isSmallScreen ? 8 : isTablet ? 20 : 12,
+      medium: isSmallScreen ? 12 : isTablet ? 24 : 16,
+      large: isSmallScreen ? 16 : isTablet ? 28 : 20,
+      screen: isSmallScreen ? 16 : isTablet ? 24 : 20,
+    },
+    icon: {
+      small: isSmallScreen ? 14 : isTablet ? 20 : 16,
+      medium: isSmallScreen ? 18 : isTablet ? 24 : 20,
+      large: isSmallScreen ? 22 : isTablet ? 28 : 24,
+    },
+    layout: {
+      cardPadding: isSmallScreen ? 12 : isTablet ? 20 : 16,
+      buttonHeight: isSmallScreen ? 44 : isTablet ? 56 : 48,
+    }
+  };
+
+  // Enhanced filters with better mobile optimization
   const filters = React.useMemo(() => {
     const baseFilters = [
       { label: 'Week', value: '7d', icon: 'calendar-outline', color: '#4ADE80' },
       { label: 'Month', value: '30d', icon: 'calendar', color: '#60A5FA' },
       { label: '3 Months', value: '90d', icon: 'business', color: '#F59E0B' },
       { label: '6 Months', value: '180d', icon: 'bar-chart', color: '#8B5CF6' },
+      { label: 'Year', value: '365d', icon: 'trophy', color: '#EF4444' },
     ];
     
+    // For very small screens, show fewer filters with horizontal scroll
     if (isSmallScreen) {
-      return baseFilters.slice(0, 3);
+      return baseFilters;
     }
     
-    return [...baseFilters, { label: 'Year', value: '365d', icon: 'trophy', color: '#EF4444' }];
+    return baseFilters;
   }, [isSmallScreen]);
 
   const reportWidgets = [
-    { id: 'moodChart', label: 'Mood Journey', icon: '📈', category: 'Trends', description: 'See how your mood changes over time' },
-    { id: 'aiInsights', label: 'AI Insights', icon: '🤖', category: 'Smart Analysis', description: 'Personalized insights from your data' },
-    { id: 'riskTrend', label: 'Wellness Alerts', icon: '⚠️', category: 'Safety', description: 'Track patterns that need attention' },
-    { id: 'factors', label: 'Mood Influencers', icon: '🔍', category: 'Analysis', description: 'What affects your mood most' },
-    { id: 'weeklyBreakdown', label: 'Weekly Patterns', icon: '📅', category: 'Patterns', description: 'Your mood across different days' },
-    { id: 'moodDistribution', label: 'Mood Balance', icon: '⚖️', category: 'Overview', description: 'Distribution of your emotional states' },
-    { id: 'progressChart', label: 'Progress Track', icon: '🎯', category: 'Goals', description: 'Your wellness journey progress' },
-    { id: 'sleepCorrelation', label: 'Sleep & Mood', icon: '😴', category: 'Health', description: 'How sleep affects your feelings' },
-    { id: 'activityImpact', label: 'Activity Impact', icon: '⚡', category: 'Lifestyle', description: 'What activities help or hinder' },
+    { id: 'moodChart', label: 'Mood Journey', icon: 'trending-up', category: 'Trends', description: 'See how your mood changes over time' },
+    { id: 'aiInsights', label: 'AI Insights', icon: 'sparkles', category: 'Smart Analysis', description: 'Personalized insights from your data' },
+    { id: 'riskTrend', label: 'Wellness Alerts', icon: 'warning', category: 'Safety', description: 'Track patterns that need attention' },
+    { id: 'factors', label: 'Mood Influencers', icon: 'search', category: 'Analysis', description: 'What affects your mood most' },
+    { id: 'weeklyBreakdown', label: 'Weekly Patterns', icon: 'calendar', category: 'Patterns', description: 'Your mood across different days' },
+    { id: 'moodDistribution', label: 'Mood Balance', icon: 'pie-chart', category: 'Overview', description: 'Distribution of your emotional states' },
+    { id: 'progressChart', label: 'Progress Track', icon: 'trophy', category: 'Goals', description: 'Your wellness journey progress' },
+    { id: 'sleepCorrelation', label: 'Sleep & Mood', icon: 'moon', category: 'Health', description: 'How sleep affects your feelings' },
+    { id: 'activityImpact', label: 'Activity Impact', icon: 'barbell', category: 'Lifestyle', description: 'What activities help or hinder' },
   ];
 
-  // Enhanced data loading with mental health focus
+  // Enhanced data loading
   const loadData = async () => {
     try {
       setLoading(true);
@@ -98,7 +132,6 @@ export default function MoodStatsScreen({ navigation }) {
       setDashboard(enhancedDashboard);
       setRiskHistory(riskData);
 
-      // Animate content in
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 800,
@@ -117,7 +150,7 @@ export default function MoodStatsScreen({ navigation }) {
     }
   };
 
-  // Enhanced mock data with youth mental health focus
+  // Keep your existing helper functions (calculateSleepCorrelation, etc.)
   const calculateSleepCorrelation = (data) => {
     return {
       correlation: 0.72,
@@ -178,63 +211,103 @@ export default function MoodStatsScreen({ navigation }) {
     navigation.navigate('MoodLog');
   };
 
-  // Responsive design values
-  const responsive = {
-    fontSize: {
-      title: isSmallScreen ? 22 : isLargeScreen ? 26 : 24,
-      subtitle: isSmallScreen ? 13 : 14,
-      tab: isSmallScreen ? 14 : 15,
-      filter: isSmallScreen ? 12 : 13,
-      metric: isSmallScreen ? 16 : 18,
-    },
-    spacing: {
-      small: isSmallScreen ? 12 : 16,
-      medium: isSmallScreen ? 16 : 20,
-      large: isSmallScreen ? 20 : 24,
-    },
-    icon: {
-      small: isSmallScreen ? 16 : 18,
-      medium: isSmallScreen ? 20 : 22,
-      large: isSmallScreen ? 24 : 28,
-    }
-  };
-
-  // Quick stats for mental health overview
+  // Enhanced Quick Stats with better mobile layout
   const QuickStats = () => (
-    <View style={styles.quickStats}>
+    <View style={[
+      styles.quickStats,
+      isSmallScreen && styles.quickStatsSmall,
+      isTablet && styles.quickStatsTablet
+    ]}>
       <View style={styles.statItem}>
+        <View style={[styles.statIcon, { backgroundColor: `${Colors.secondary}15` }]}>
+          <Ionicons name="heart" size={responsive.icon.small} color={Colors.secondary} />
+        </View>
         <Text style={[styles.statValue, { fontSize: responsive.fontSize.metric }]}>
           {dashboard?.mindBalanceScore || 0}
         </Text>
-        <Text style={styles.statLabel}>Wellness Score</Text>
+        <Text style={[styles.statLabel, { fontSize: responsive.fontSize.filter }]}>Wellness</Text>
       </View>
+      
       <View style={styles.statDivider} />
+      
       <View style={styles.statItem}>
+        <View style={[styles.statIcon, { backgroundColor: `${Colors.primary}15` }]}>
+          <Ionicons name="document-text" size={responsive.icon.small} color={Colors.primary} />
+        </View>
         <Text style={[styles.statValue, { fontSize: responsive.fontSize.metric }]}>
           {dashboard?.moodLogs?.length || 0}
         </Text>
-        <Text style={styles.statLabel}>Entries</Text>
+        <Text style={[styles.statLabel, { fontSize: responsive.fontSize.filter }]}>Entries</Text>
       </View>
+      
       <View style={styles.statDivider} />
+      
       <View style={styles.statItem}>
+        <View style={[styles.statIcon, { backgroundColor: `${Colors.accent}15` }]}>
+          <Ionicons name="flash" size={responsive.icon.small} color={Colors.accent} />
+        </View>
         <Text style={[styles.statValue, { fontSize: responsive.fontSize.metric }]}>
           {dashboard?.weeklyMoods?.length || 0}/7
         </Text>
-        <Text style={styles.statLabel}>This Week</Text>
+        <Text style={[styles.statLabel, { fontSize: responsive.fontSize.filter }]}>This Week</Text>
       </View>
     </View>
   );
 
-  // Loading state with mental health affirmation
+  // Enhanced Filter Buttons Component
+  const FilterButtons = () => (
+    <View style={styles.filterSection}>
+      <Text style={[styles.filterLabel, { fontSize: responsive.fontSize.body }]}>
+        View data for:
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.filterContent,
+          isSmallScreen && styles.filterContentSmall
+        ]}
+      >
+        {filters.map((f) => (
+          <TouchableOpacity
+            key={f.value}
+            style={[
+              styles.filterButton,
+              isSmallScreen && styles.filterButtonSmall,
+              isTablet && styles.filterButtonTablet,
+              range === f.value && [styles.activeFilterButton, { borderColor: f.color }],
+            ]}
+            onPress={() => setRange(f.value)}
+          >
+            <Ionicons 
+              name={f.icon} 
+              size={responsive.icon.small} 
+              color={range === f.value ? '#fff' : f.color} 
+            />
+            <Text style={[
+              styles.filterText,
+              { fontSize: responsive.fontSize.filter },
+              range === f.value && styles.activeFilterText,
+            ]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  // Loading state with better mobile optimization
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <StatusBar backgroundColor={Colors.primary} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.secondary} />
-          <Text style={[styles.loadingText, { fontSize: responsive.fontSize.subtitle }]}>
+          <ActivityIndicator size={isTablet ? "large" : "small"} color={Colors.secondary} />
+          <Text style={[styles.loadingText, { fontSize: responsive.fontSize.body }]}>
             Understanding your emotional patterns...
           </Text>
-          <Text style={styles.affirmation}>
+          <Text style={[styles.affirmation, { fontSize: responsive.fontSize.subtitle }]}>
             Taking time to reflect is a sign of strength 💪
           </Text>
         </View>
@@ -244,21 +317,31 @@ export default function MoodStatsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor={Colors.primary} />
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         
-        {/* Enhanced Header with Mental Health Focus */}
-        <View style={styles.header}>
+        {/* Enhanced Header */}
+        <View style={[
+          styles.header,
+          { paddingHorizontal: responsive.spacing.screen }
+        ]}>
           <View style={styles.headerContent}>
             <View style={styles.titleRow}>
-              <Text style={[styles.title, { fontSize: responsive.fontSize.title }]}>
-                🌱 Your Wellness Journey
-              </Text>
+              <View style={styles.titleContainer}>
+                <Ionicons name="leaf" size={responsive.icon.medium} color={Colors.secondary} />
+                <Text style={[styles.title, { fontSize: responsive.fontSize.title }]}>
+                  Your Wellness Journey
+                </Text>
+              </View>
               <TouchableOpacity
-                style={styles.helpButton}
+                style={[
+                  styles.helpButton,
+                  isSmallScreen && styles.helpButtonSmall
+                ]}
                 onPress={() => setExportModalVisible(true)}
-                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="options-outline" size={responsive.icon.medium} color={Colors.secondary} />
+                <Ionicons name="options" size={responsive.icon.small} color={Colors.secondary} />
               </TouchableOpacity>
             </View>
             <Text style={[styles.subtitle, { fontSize: responsive.fontSize.subtitle }]}>
@@ -273,7 +356,10 @@ export default function MoodStatsScreen({ navigation }) {
         {/* Enhanced Tab Navigation */}
         <View style={[
           styles.tabContainer,
-          { marginHorizontal: responsive.spacing.small }
+          { 
+            marginHorizontal: responsive.spacing.screen,
+            marginBottom: responsive.spacing.medium
+          }
         ]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'analytics' && styles.activeTab]}
@@ -298,7 +384,7 @@ export default function MoodStatsScreen({ navigation }) {
             onPress={() => setActiveTab('reports')}
           >
             <Ionicons 
-              name="document-text-outline" 
+              name="document-text" 
               size={responsive.icon.small} 
               color={activeTab === 'reports' ? Colors.secondary : Colors.textSecondary} 
             />
@@ -313,38 +399,7 @@ export default function MoodStatsScreen({ navigation }) {
         </View>
 
         {/* Enhanced Time Range Filters */}
-        <View style={styles.filterSection}>
-          <Text style={styles.filterLabel}>View data for:</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterContent}
-          >
-            {filters.map((f, index) => (
-              <TouchableOpacity
-                key={f.value}
-                style={[
-                  styles.filterButton,
-                  range === f.value && [styles.activeFilterButton, { borderColor: f.color }],
-                ]}
-                onPress={() => setRange(f.value)}
-              >
-                <Ionicons 
-                  name={f.icon} 
-                  size={responsive.icon.small} 
-                  color={range === f.value ? '#fff' : f.color} 
-                />
-                <Text style={[
-                  styles.filterText,
-                  { fontSize: responsive.fontSize.filter },
-                  range === f.value && styles.activeFilterText,
-                ]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        <FilterButtons />
 
         {/* Main Content Area */}
         <View style={styles.content}>
@@ -356,11 +411,13 @@ export default function MoodStatsScreen({ navigation }) {
                   onRefresh={onRefresh}
                   tintColor={Colors.secondary}
                   colors={[Colors.secondary]}
-                  title="Updating your wellness data..."
                 />
               }
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={[
+                styles.scrollContent,
+                isSmallScreen && styles.scrollContentSmall
+              ]}
             >
               {activeTab === 'analytics' ? (
                 <MoodAnalyticsView
@@ -380,18 +437,21 @@ export default function MoodStatsScreen({ navigation }) {
               )}
             </ScrollView>
           ) : (
-            <View style={styles.emptyState}>
+            <View style={[
+              styles.emptyState,
+              { paddingHorizontal: responsive.spacing.screen }
+            ]}>
               <View style={styles.emptyIllustration}>
                 <Ionicons 
-                  name="stats-chart-outline" 
-                  size={isSmallScreen ? 80 : 100} 
-                  color={`${Colors.textSecondary}40`} 
+                  name="stats-chart" 
+                  size={isSmallScreen ? 60 : isTablet ? 100 : 80} 
+                  color={`${Colors.textSecondary}30`} 
                 />
                 <View style={styles.emptyTextContent}>
                   <Text style={[styles.emptyTitle, { fontSize: responsive.fontSize.title }]}>
                     Your Wellness Story Awaits
                   </Text>
-                  <Text style={[styles.emptySub, { fontSize: responsive.fontSize.subtitle }]}>
+                  <Text style={[styles.emptySub, { fontSize: responsive.fontSize.body }]}>
                     Start tracking your mood to uncover patterns and build emotional awareness
                   </Text>
                 </View>
@@ -399,21 +459,34 @@ export default function MoodStatsScreen({ navigation }) {
               
               <View style={styles.emptyActions}>
                 <TouchableOpacity 
-                  style={styles.primaryButton}
+                  style={[
+                    styles.primaryButton,
+                    isSmallScreen && styles.primaryButtonSmall,
+                    isTablet && styles.primaryButtonTablet
+                  ]}
                   onPress={navigateToMoodLog}
                 >
-                  <Ionicons name="add-circle" size={20} color="#fff" />
-                  <Text style={styles.primaryButtonText}>Log My First Mood</Text>
+                  <Ionicons name="add-circle" size={responsive.icon.small} color="#fff" />
+                  <Text style={[
+                    styles.primaryButtonText,
+                    { fontSize: responsive.fontSize.body }
+                  ]}>Log My First Mood</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.secondaryButton}
+                  style={[
+                    styles.secondaryButton,
+                    isSmallScreen && styles.secondaryButtonSmall
+                  ]}
                   onPress={() => Alert.alert(
                     "Why Track Mood?",
                     "Regular mood tracking helps you:\n\n• Spot patterns and triggers\n• Understand yourself better\n• Build emotional intelligence\n• Celebrate progress\n• Get support when needed"
                   )}
                 >
-                  <Text style={styles.secondaryButtonText}>Learn How It Helps</Text>
+                  <Text style={[
+                    styles.secondaryButtonText,
+                    { fontSize: responsive.fontSize.subtitle }
+                  ]}>Learn How It Helps</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -432,8 +505,9 @@ export default function MoodStatsScreen({ navigation }) {
             <View style={[
               styles.modalContent,
               { 
-                maxHeight: screenHeight * 0.85,
+                maxHeight: screenHeight * (isSmallScreen ? 0.9 : 0.85),
                 marginHorizontal: isSmallScreen ? 8 : 16,
+                borderRadius: isSmallScreen ? 16 : 24,
               }
             ]}>
               <View style={styles.modalHeader}>
@@ -463,9 +537,17 @@ export default function MoodStatsScreen({ navigation }) {
               <FlatList
                 data={reportWidgets}
                 renderItem={({ item }) => (
-                  <View style={styles.widgetItem}>
+                  <View style={[
+                    styles.widgetItem,
+                    isSmallScreen && styles.widgetItemSmall
+                  ]}>
                     <View style={styles.widgetInfo}>
-                      <Text style={styles.widgetEmoji}>{item.icon}</Text>
+                      <View style={[
+                        styles.widgetIcon,
+                        { backgroundColor: `${Colors.secondary}10` }
+                      ]}>
+                        <Ionicons name={item.icon} size={responsive.icon.small} color={Colors.secondary} />
+                      </View>
                       <View style={styles.widgetTextContainer}>
                         <Text style={[
                           styles.widgetLabel,
@@ -489,25 +571,35 @@ export default function MoodStatsScreen({ navigation }) {
                       onValueChange={() => toggleWidget(item.id)}
                       trackColor={{ true: Colors.secondary, false: '#E2E8F0' }}
                       thumbColor={selectedWidgets[item.id] ? '#fff' : '#f4f3f4'}
+                      style={isSmallScreen && { transform: [{ scale: 0.8 }] }}
                     />
                   </View>
                 )}
                 keyExtractor={(item) => item.id}
                 style={styles.widgetList}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.widgetListContent}
+                contentContainerStyle={[
+                  styles.widgetListContent,
+                  isSmallScreen && styles.widgetListContentSmall
+                ]}
               />
               
               <View style={styles.modalFooter}>
                 <TouchableOpacity 
-                  style={styles.modalActionButton}
+                  style={[
+                    styles.modalActionButton,
+                    isSmallScreen && styles.modalActionButtonSmall
+                  ]}
                   onPress={() => setSelectedWidgets({
                     moodChart: true, aiInsights: true, riskTrend: true,
                     factors: true, weeklyBreakdown: true, moodDistribution: true,
                     progressChart: true, sleepCorrelation: true, activityImpact: true,
                   })}
                 >
-                  <Text style={styles.modalActionText}>Select All</Text>
+                  <Text style={[
+                    styles.modalActionText,
+                    { fontSize: responsive.fontSize.body }
+                  ]}>Select All</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -542,12 +634,10 @@ const styles = StyleSheet.create({
   affirmation: {
     marginTop: 12,
     color: Colors.textSecondary,
-    fontSize: 14,
     fontStyle: 'italic',
     textAlign: 'center',
   },
   header: {
-    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
   },
@@ -557,6 +647,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 6,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
   headerContent: {
     flex: 1,
   },
@@ -564,16 +660,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textPrimary,
     flex: 1,
-    lineHeight: 32,
   },
   subtitle: {
     color: Colors.textSecondary,
     lineHeight: 18,
+    marginTop: 4,
   },
   helpButton: {
     padding: 8,
     backgroundColor: `${Colors.secondary}15`,
     borderRadius: 12,
+  },
+  helpButtonSmall: {
+    padding: 6,
+    borderRadius: 10,
   },
   quickStats: {
     flexDirection: 'row',
@@ -588,9 +688,27 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  quickStatsSmall: {
+    marginHorizontal: 16,
+    padding: 12,
+    borderRadius: 12,
+  },
+  quickStatsTablet: {
+    marginHorizontal: 24,
+    padding: 20,
+    borderRadius: 20,
+  },
   statItem: {
     flex: 1,
     alignItems: 'center',
+  },
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   statValue: {
     fontWeight: '700',
@@ -598,7 +716,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
     color: Colors.textSecondary,
     textAlign: 'center',
   },
@@ -612,8 +729,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${Colors.secondary}08`,
     borderRadius: 14,
     padding: 4,
-    marginBottom: 16,
-    minHeight: 48,
+    minHeight: 44,
   },
   tab: {
     flex: 1,
@@ -622,7 +738,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     borderRadius: 10,
-    gap: 8,
+    gap: 6,
   },
   activeTab: {
     backgroundColor: '#fff',
@@ -644,13 +760,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   filterLabel: {
-    fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 12,
   },
   filterContent: {
     paddingRight: 20,
+  },
+  filterContentSmall: {
+    paddingRight: 16,
   },
   filterButton: {
     flexDirection: 'row',
@@ -669,6 +787,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
     minHeight: 44,
+  },
+  filterButtonSmall: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: 40,
+    borderRadius: 10,
+  },
+  filterButtonTablet: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minHeight: 52,
+    borderRadius: 14,
   },
   activeFilterButton: {
     backgroundColor: Colors.secondary,
@@ -689,10 +819,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 20,
   },
+  scrollContentSmall: {
+    paddingBottom: 16,
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
     paddingVertical: 40,
   },
   emptyIllustration: {
@@ -709,7 +841,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
-    lineHeight: 28,
   },
   emptySub: {
     color: Colors.textSecondary,
@@ -734,10 +865,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  primaryButtonSmall: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  primaryButtonTablet: {
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+  },
   primaryButtonText: {
     color: '#fff',
     fontWeight: '600',
-    fontSize: 16,
   },
   secondaryButton: {
     paddingVertical: 14,
@@ -747,10 +887,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
   },
+  secondaryButtonSmall: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
   secondaryButtonText: {
     color: Colors.textSecondary,
     fontWeight: '500',
-    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -759,10 +903,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     padding: 20,
-    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -787,6 +928,9 @@ const styles = StyleSheet.create({
   widgetListContent: {
     paddingBottom: 16,
   },
+  widgetListContentSmall: {
+    paddingBottom: 12,
+  },
   widgetItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -795,18 +939,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F8FAFC',
   },
+  widgetItemSmall: {
+    paddingVertical: 12,
+  },
   widgetInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     flex: 1,
-    gap: 16,
+    gap: 12,
+  },
+  widgetIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
   },
   widgetTextContainer: {
     flex: 1,
-  },
-  widgetEmoji: {
-    fontSize: 24,
-    width: 32,
   },
   widgetLabel: {
     color: Colors.textPrimary,
@@ -816,11 +967,11 @@ const styles = StyleSheet.create({
   widgetDescription: {
     color: Colors.textSecondary,
     marginBottom: 4,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   widgetCategory: {
     color: Colors.secondary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   modalFooter: {
@@ -832,9 +983,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
+  modalActionButtonSmall: {
+    paddingVertical: 10,
+  },
   modalActionText: {
     color: Colors.secondary,
     fontWeight: '600',
-    fontSize: 16,
   },
 });
