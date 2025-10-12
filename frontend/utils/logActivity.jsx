@@ -1,21 +1,21 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// frontend/utils/logActivity.jsx
+import api from "../config/api";
+import { showSyncedToast } from "./toastUtils";
 
-const LOG_KEY = "exerciseLogs";
-
-export async function logActivity(activityName, duration = 0) {
+export const logActivity = async (type, name, duration, userId, moods = {}) => {
   try {
-    const raw = await AsyncStorage.getItem(LOG_KEY);
-    const logs = raw ? JSON.parse(raw) : [];
-
-    logs.push({
-      name: activityName,
-      ts: new Date().toISOString(),
+    const res = await api.post("/api/activities/add", {
+      userId,
+      type,
+      name,
       duration,
+      moodBefore: moods.before,
+      moodAfter: moods.after,
     });
 
-    await AsyncStorage.setItem(LOG_KEY, JSON.stringify(logs));
-    console.log("✅ Logged activity:", activityName);
+    console.log("✅ Activity logged:", res.data);
+    showSyncedToast("💪 Activity synced to dashboard!");
   } catch (err) {
-    console.error("❌ Failed to log activity:", err);
+    console.error("🚨 logActivity error:", err);
   }
-}
+};

@@ -1,86 +1,312 @@
-// screens/RewardsScreen.jsx
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, FlatList } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  Alert,
+  Platform,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Footer from "../components/BottomBar.jsx";
+import api from "../config/api";
 
 export default function RewardsScreen() {
-  const [badges, setBadges] = useState([]);
+  const [rewards, setRewards] = useState(null);
+  const [dailyCelebrate, setDailyCelebrate] = useState(false);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const userId = "demo_user";
 
+  // ✅ Fetch rewards from backend and trigger celebration
   useEffect(() => {
-    (async () => {
-      const logsJson = await AsyncStorage.getItem("exerciseLogs");
-      const streakStr = await AsyncStorage.getItem("userStreak");
-      const logs = logsJson ? JSON.parse(logsJson) : [];
-      const streak = streakStr ? parseInt(streakStr, 10) : 0;
-
-      const unlocked = [];
-
-      // Basic badges
-      if (logs.length > 0) unlocked.push("✅ First Activity");
-      if (streak >= 3) unlocked.push("🔥 3-Day Streak");
-
-      // Weekly goal: 5 logs this week (Mon–Sun)
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setHours(0, 0, 0, 0);
-      const day = startOfWeek.getDay(); // 0 Sun ... 6 Sat
-      const diffToMonday = (day + 6) % 7;
-      startOfWeek.setDate(startOfWeek.getDate() - diffToMonday);
-
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 7);
-
-      const thisWeekCount = logs.filter((log) => {
-        const ts = log.ts ?? log.date ?? log.timestamp ?? Date.now();
-        const d = new Date(ts);
-        return d >= startOfWeek && d < endOfWeek;
-      }).length;
-
-      if (thisWeekCount >= 5) unlocked.push("🏆 Weekly Goal Achieved");
-
-      setBadges(unlocked);
-    })();
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/api/rewards/${userId}`);
+        setRewards(res.data);
+        animateProgress(res.data.xp % 1000);
+        // wait for AsyncStorage readiness
+        setTimeout(checkDailyCelebration, 800);
+      } catch (err) {
+        console.error("Rewards fetch error:", err);
+      }
+    };
+    fetchData();
   }, []);
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.wrap}>
-        <Text style={styles.title}>🏆 Your Rewards</Text>
+  // 🎉 Daily celebration logic (mobile safe)
+  const checkDailyCelebration = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0]; // ✅ consistent format
+      const lastCelebration = await AsyncStorage.getItem("lastCelebrateDate");
 
-        {badges.length > 0 ? (
-          <FlatList
-            data={badges}
-            keyExtractor={(item) => item}
-            contentContainerStyle={{ paddingVertical: 8 }}
-            renderItem={({ item }) => (
-              <View style={styles.badgeCard}>
-                <Text style={styles.badgeText}>{item}</Text>
-              </View>
-            )}
-          />
-        ) : (
-          <Text style={styles.noBadges}>No badges yet. Keep going! 🚀</Text>
-        )}
+      console.log("📅 Today:", today, "| Last Celebration:", lastCelebration);
+
+      if (lastCelebration !== today) {
+        setDailyCelebrate(true);
+        playGlowAnimation();
+        await AsyncStorage.setItem("lastCelebrateDate", today);
+        Alert.alert("🎉 Welcome Back!", "Keep your streak alive today 💪");
+
+        // Stop animation after 4 seconds
+        setTimeout(() => setDailyCelebrate(false), 4000);
+      }
+    } catch (err) {
+      console.error("Daily celebration error:", err);
+    }
+  };
+
+  // 🌈 XP bar animation
+  const animateProgress = (xpValue) => {
+    const target = Math.min((xpValue / 1000) * 100, 100);
+    Animated.timing(progressAnim, {
+      toValue: target,
+      duration: 1200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // 💫 Glow animation
+  const playGlowAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  };
+
+  // 🔁 Refresh data
+  const handleRefresh = async () => {
+    try {
+      const res = await api.get(`/api/rewards/${userId}`);
+      setRewards(res.data);
+      animateProgress(res.data.xp % 1000);
+    } catch (err) {
+      console.error("Refresh error:", err);
+    }
+  };
+
+  // 🎨 Tier styles
+  const getBadgeStyle = (tier) => {
+    switch (tier) {
+      case "Bronze":
+        return ["#FDE68A", "#F59E0B"];
+      case "Silver":
+        return ["#E5E7EB", "#9CA3AF"];
+      case "Gold":
+        return ["#FACC15", "#CA8A04"];
+      case "Platinum":
+        return ["#93C5FD", "#1E3A8A"];
+      default:
+        return ["#C7E8FF", "#4A90E2"];
+    }
+  };
+
+  const getBadgeEmoji = (tier) => {
+    switch (tier) {
+      case "Bronze":
+        return "🥉";
+      case "Silver":
+        return "🥈";
+      case "Gold":
+        return "🥇";
+      case "Platinum":
+        return "💎";
+      default:
+        return "🎖️";
+    }
+  };
+
+  if (!rewards)
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A90E2" />
+        <Text style={{ color: "#4A90E2", marginTop: 8 }}>Loading rewards...</Text>
       </View>
+    );
 
-      <Footer />
-    </SafeAreaView>
+  return (
+    <LinearGradient colors={["#E0F2FE", "#FFFFFF"]} style={styles.container}>
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        <Text style={styles.title}>🏆 Your Achievements</Text>
+        <Text style={styles.subtitle}>Welcome back! Let’s keep your streak strong 💪</Text>
+
+        {/* 🏅 Badge Section */}
+        <Animated.View
+          style={[
+            styles.glowWrapper,
+            {
+              shadowColor: "#10B981",
+              shadowOpacity: glowAnim,
+              shadowRadius: glowAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 25],
+              }),
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={getBadgeStyle(rewards.badge)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.badgeCard}
+          >
+            <Text style={styles.badgeEmoji}>{getBadgeEmoji(rewards.badge)}</Text>
+            <Text style={styles.badgeText}>{rewards.badge} Tier</Text>
+          </LinearGradient>
+
+          {/* 🎉 Confetti animation */}
+          {dailyCelebrate && (
+            <LottieView
+              source={require("../assets/lottie/confetti.json")}
+              autoPlay
+              loop={false}
+              style={styles.lottie}
+            />
+          )}
+        </Animated.View>
+
+        {/* 📊 Stats Grid */}
+        <View style={styles.statsGrid}>
+          <StatCard icon="timer-outline" color="#3B82F6" label="Minutes" value={rewards.totalMinutes} />
+          <StatCard icon="fitness-outline" color="#10B981" label="Sessions" value={rewards.totalSessions} />
+          <StatCard icon="flame-outline" color="#F97316" label="Streak" value={`${rewards.streakDays} days`} />
+          <StatCard icon="star-outline" color="#8B5CF6" label="XP" value={`${rewards.xp}`} />
+        </View>
+
+        {/* XP Progress
+        <View style={styles.xpBox}>
+          <Text style={styles.xpLabel}>Progress to next tier</Text>
+          <View style={styles.progressBar}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ["0%", "100%"],
+                  }),
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.xpHint}>{rewards.xp % 1000}/1000 XP</Text>
+        </View>
+         */}
+
+        {/* Motivation Tip 
+        <View style={styles.tipBox}>
+          <Ionicons name="sparkles-outline" size={20} color="#4A90E2" />
+          <Text style={styles.tipText}>
+            🌱 A new day, a new chance! Keep your wellness journey going strong.
+          </Text>
+        </View>
+        */}
+
+        {/* 🔄 Refresh Button */}
+        <TouchableOpacity style={styles.refreshBtn} onPress={handleRefresh}>
+          <Ionicons name="refresh" size={20} color="#fff" />
+          <Text style={styles.refreshText}>Refresh Rewards</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </LinearGradient>
+    
+
   );
+  
 }
 
+/* --- Stat Card --- */
+const StatCard = ({ icon, color, label, value }) => (
+  <View style={[styles.card, { backgroundColor: "#fff" }]}>
+    <Ionicons name={icon} size={26} color={color} />
+    <Text style={[styles.label, { color }]}>{label}</Text>
+    <Text style={styles.value}>{value}</Text>
+  </View>
+);
+
+/* --- Styles --- */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F9FF" },
-  wrap: { flex: 1, padding: 20 },
-  title: { fontSize: 22, fontWeight: "800", marginBottom: 16, color: "#111827" },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 26, fontWeight: "800", color: "#1E3A8A", marginBottom: 6 },
+  subtitle: { color: "#475569", marginBottom: 20, fontSize: 14 },
+  glowWrapper: { alignItems: "center", marginBottom: 20 },
   badgeCard: {
-    padding: 14,
-    marginBottom: 10,
-    backgroundColor: "#E0F2FE",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 35,
+    width: "85%",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  badgeText: { fontSize: 16, fontWeight: "700", color: "#1D4ED8" },
-  noBadges: { fontSize: 16, color: "#6B7280", marginTop: 8 },
+  badgeEmoji: { fontSize: 56 },
+  badgeText: { color: "#fff", fontSize: 22, fontWeight: "700", marginTop: 8 },
+  lottie: { position: "absolute", top: -40, width: 300, height: 300 },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  card: {
+    width: "47%",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  label: { fontSize: 14, fontWeight: "600", marginTop: 4 },
+  value: { fontSize: 18, fontWeight: "800", color: "#0F172A", marginTop: 2 },
+  xpBox: { marginTop: 20, marginBottom: 20 },
+  xpLabel: { fontSize: 14, color: "#334155", marginBottom: 6 },
+  progressBar: {
+    height: 12,
+    width: "100%",
+    backgroundColor: "#E5E7EB",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  progressFill: { height: "100%", backgroundColor: "#10B981", borderRadius: 8 },
+  xpHint: { marginTop: 4, fontSize: 12, color: "#475569" },
+  tipBox: {
+    backgroundColor: "#F1F5F9",
+    padding: 14,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  tipText: { marginLeft: 8, color: "#1E3A8A", fontSize: 14, flex: 1 },
+  refreshBtn: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#4A90E2",
+    borderRadius: 30,
+    paddingVertical: 12,
+    marginTop: 30,
+  },
+  refreshText: { color: "#fff", fontWeight: "700", marginLeft: 8, fontSize: 16 },
 });

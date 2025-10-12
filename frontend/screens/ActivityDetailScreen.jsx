@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from "react-native";
 import Header from "../components/HeaderBar.jsx";
-import Footer from "../components/BottomBar.jsx";
+//import Footer from "../components/BottomBar.jsx";
 import { logActivity } from "../utils/logActivity.jsx";
 
 export default function ActivityDetailScreen({ route, navigation }) {
@@ -36,7 +36,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
     }
     // When finished, log once
     if (timeLeft === 0) {
-      logActivity("Meditation", 300);
+      logActivity("Meditation", "Meditation Session", 5, "demo_user"); // 5 minutes duration
     }
     return () => clearInterval(timer);
   }, [started, timeLeft, activity]);
@@ -73,7 +73,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
     setStarted(false);
     // Log generic activity end if not meditation (meditation logs on finish)
     if (activity !== "Meditation") {
-      logActivity(activity);
+      logActivity(activity, activity + " Session", 1, "demo_user"); // 1 minute default duration
     }
   };
 
@@ -83,7 +83,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
       return;
     }
     Alert.alert("Journal Saved ✅");
-    logActivity("Journaling");
+    logActivity("Journal", "Journal Entry", Math.ceil(journalText.length / 50), "demo_user"); // Estimate duration based on text length
     setJournalText("");
     setStarted(false);
   };
@@ -171,8 +171,9 @@ export default function ActivityDetailScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header title={activity} navigation={navigation} showBack={true} />
-
+      {activity !== "Music" && (
+  <Header title={activity} navigation={navigation} showBack={true} />
+)}
       <ScrollView contentContainerStyle={styles.content}>
         {activity === "Meditation"
           ? renderMeditation()
@@ -181,7 +182,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
           : renderGeneric()}
       </ScrollView>
 
-      <Footer />
+     {/* <Footer /> */}
     </SafeAreaView>
   );
 }

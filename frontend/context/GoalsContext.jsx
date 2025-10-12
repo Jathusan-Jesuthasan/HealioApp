@@ -1,3 +1,4 @@
+// frontend/context/GoalsContext.js
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -9,28 +10,34 @@ export function GoalsProvider({ children }) {
     minutesPerDay: 20,
   });
 
+  // Load saved goals
   useEffect(() => {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem("goals");
-        if (raw) setGoals(JSON.parse(raw));
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setGoals(parsed);
+        }
       } catch (err) {
-        console.log("Failed to load goals", err);
+        console.log("⚠️ Failed to load goals:", err);
       }
     })();
   }, []);
 
+  // Save new goals
   const saveGoals = async (newGoals) => {
     setGoals(newGoals);
     try {
       await AsyncStorage.setItem("goals", JSON.stringify(newGoals));
+      console.log("✅ Goals saved:", newGoals);
     } catch (err) {
-      console.log("Failed to save goals", err);
+      console.log("⚠️ Failed to save goals:", err);
     }
   };
 
   return (
-    <GoalsContext.Provider value={{ goals, saveGoals }}>
+    <GoalsContext.Provider value={{ goals, setGoals, saveGoals }}>
       {children}
     </GoalsContext.Provider>
   );

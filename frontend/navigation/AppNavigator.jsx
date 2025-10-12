@@ -1,37 +1,34 @@
-// /navigation/AppNavigator.jsx
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Colors } from "../utils/Colors";
 
-// Screens
 import DashboardScreen from "../screens/DashboardScreen";
 import MoodLogScreen from "../screens/MoodLogScreen";
-// Optional: add these when ready
-// import TrendsScreen from "../screens/TrendsScreen";
-// import ReportScreen from "../screens/ReportScreen";
-// import SettingsScreen from "../screens/SettingsScreen";
+import ChatbotScreen from "../screens/ChatbotScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import ActivityStack from "./ActivityStack"; // ✅ use stack instead of ActivityScreen
+import ActivityDashboardScreen from "../screens/ActivityDashboardScreen";
 
-import BottomBar from "../components/BottomBar";
+import BottomNavBar from "../components/BottomNavBar";
 
 const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
     <Tab.Navigator
-      initialRouteName="MoodLog"      // 👈 start here after login
+      initialRouteName="MoodLog"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.navActive ?? Colors.secondary,
         tabBarInactiveTintColor: Colors.navIcon ?? Colors.textSecondary,
       }}
-      // Use custom bottom bar (rounded + center FAB)
-      tabBar={(props) => <BottomBar {...props} />}
+      tabBar={(props) => <BottomNavBar {...props} />}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Home" component={DashboardScreen} />
+      <Tab.Screen name="Chat" component={ChatbotScreen} />
       <Tab.Screen name="MoodLog" component={MoodLogScreen} />
-      {/* <Tab.Screen name="Trends" component={TrendsScreen} /> */}
-      {/* <Tab.Screen name="Reports" component={ReportScreen} /> */}
-      {/* <Tab.Screen name="Settings" component={SettingsScreen} /> */}
+      <Tab.Screen name="Activity" component={ActivityStack} /> {/* ✅ FIXED */}
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
