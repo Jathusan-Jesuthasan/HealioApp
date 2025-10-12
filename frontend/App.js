@@ -1,13 +1,20 @@
 // App.js
 import React, { useContext, useEffect, useState, memo } from "react";
-import { View, ActivityIndicator, Text } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { Ionicons } from "@expo/vector-icons";
+import api from "./config/api";
+import  Toast from 'react-native-toast-message';
+// Context providers
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { GoalsProvider } from "./context/GoalsContext";
+import { ActivityProvider } from "./context/ActivityContext";
+
+// Components
 import BottomNavBar from "./components/BottomNavBar";
 import HeaderBar from "./components/HeaderBar";
 
@@ -18,9 +25,21 @@ import LoginScreen from "./screens/LoginScreen";
 import SignupScreen from "./screens/SignupScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/ProfileScreen";
-import MoodLogScreen from "./screens/MoodLogScreen"; // keep the real one
+import MoodLogScreen from "./screens/MoodLogScreen";
+import ChatbotScreen from "./screens/ChatbotScreen";
+import ActivityScreen from "./screens/ActivityScreen";
+import ActivityDetailScreen from "./screens/ActivityDetailScreen";
+import ExerciseListScreen from "./screens/ExerciseListScreen";
+import ExerciseDetailScreen from "./screens/ExerciseDetailScreen";
+import MeditationScreen from "./screens/MeditationScreen";
+import GoalSetupScreen from "./screens/GoalSetupScreen";
+import ProgressScreen from "./screens/ProgressScreen";
+import RewardsScreen from "./screens/RewardsScreen";
+import JournalScreen from "./screens/JournalScreen";
+import MusicScreen from "./screens/MusicScreen";
+import ActivityDashboardScreen from "./screens/ActivityDashboardScreen";
 
-// ---- Profile-related pages ----
+// ---- Profile-related screens ----
 import PersonalInfoScreen from "./screens/PersonalInfoScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import LanguageScreen from "./screens/LanguageScreen";
@@ -35,31 +54,21 @@ import KnowledgeHubScreen from "./screens/KnowledgeHubScreen";
 import MessagesScreen from "./screens/MessagesScreen";
 import LogoutScreen from "./screens/LogoutScreen";
 
-// ---- Simple stubs for other tabs (replace with real pages later) ----
-const Stub = ({ label }) => (
-  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-    <Text>{label}</Text>
-  </View>
-);
-const ChatScreen = () => <Stub label="Chat" />;
-const ActivityScreen = () => <Stub label="Personalized Activity" />;
-
 // ---- Navigators ----
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-/** Helper HOC to inject the fixed HeaderBar above any screen. */
+/* ---------- Helper: add the Healio Header to screens ---------- */
 const withHeader =
   (Component, unreadCount = 3) =>
-  (props) =>
-    (
-      <View style={{ flex: 1 }}>
-        <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
-        <Component {...props} />
-      </View>
-    );
+  (props) => (
+    <View style={{ flex: 1 }}>
+      <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
+      <Component {...props} />
+    </View>
+  );
 
-/** ------------------- Profile stack (inside Profile tab) ------------------- **/
+/* ------------------- Profile stack (inside Profile tab) ------------------- */
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ProfileMain">
@@ -89,30 +98,50 @@ function ProfileStack() {
   );
 }
 
-/** ------------------- AppTabs (authenticated) ------------------- **/
+/* ------------------- Main Tabs (Authenticated App) ------------------- */
 function AppTabs() {
   return (
-    <Tab.Navigator
-      tabBar={(props) => <BottomNavBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Home" component={withHeader(DashboardScreen)} />
-      <Tab.Screen name="Chat" component={withHeader(ChatScreen)} />
-      <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
-      <Tab.Screen name="Activity" component={withHeader(ActivityScreen)} />
-      {/* Keep tab name "Profile" so navigation.navigate('Profile') switches tabs */}
-      <Tab.Screen name="Profile" component={ProfileStack} />
-    </Tab.Navigator>
+    <GoalsProvider>
+      <Tab.Navigator
+        tabBar={(props) => <BottomNavBar {...props} />}
+        screenOptions={{ headerShown: false }}
+      >
+        <Tab.Screen name="Home" component={withHeader(DashboardScreen)} />
+        <Tab.Screen name="Chat" component={withHeader(ChatbotScreen)} />
+        <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
+        <Tab.Screen name="Activity" component={withHeader(ActivityScreen)} />
+        <Tab.Screen name="ActivityDetail" component={withHeader(ActivityDetailScreen)} />
+        <Tab.Screen name="Journal" component={withHeader(JournalScreen)} />
+        <Tab.Screen name="ExerciseList" component={withHeader(ExerciseListScreen)} />
+        <Tab.Screen name="ExerciseDetail" component={withHeader(ExerciseDetailScreen)} />
+        <Tab.Screen name="Meditation" component={withHeader(MeditationScreen)} />
+        <Tab.Screen name="GoalSetup" component={withHeader(GoalSetupScreen)} />
+        <Tab.Screen name="Progress" component={withHeader(ProgressScreen)} />
+        <Tab.Screen name="Rewards" component={withHeader(RewardsScreen)} />
+        <Tab.Screen name="Music" component={withHeader(MusicScreen)} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
+        <Tab.Screen
+          name="ActivityDashboard"
+          component={withHeader(ActivityDashboardScreen)}
+          options={{
+            title: "Dashboard",
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="bar-chart-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </GoalsProvider>
   );
 }
 
-/** ------------- Non-inline wrapper to avoid React Navigation warning ------------- **/
+/* ------------------- Onboarding Wrapper ------------------- */
 const Onboarding1Screen = memo(function Onboarding1Screen(props) {
   const setter = props?.route?.params?.setHasOnboarded;
   return <OnboardingScreen1 {...props} setHasOnboarded={setter} />;
 });
 
-/** ------------------- AuthStack (logged out) ------------------- **/
+/* ------------------- Auth Stack (Login / Signup / Onboarding) ------------------- */
 function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
@@ -121,7 +150,6 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
     >
       {!hasOnboarded && (
         <>
-          {/* Usually splash/onboarding don’t need the fixed header */}
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen
             name="Onboarding1"
@@ -130,14 +158,13 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
           />
         </>
       )}
-      {/* If you want the header on auth screens too, wrap with withHeader(...) */}
       <Stack.Screen name="Login" component={withHeader(LoginScreen, 0)} />
       <Stack.Screen name="Signup" component={withHeader(SignupScreen, 0)} />
     </Stack.Navigator>
   );
 }
 
-/** ------------------- RootNavigator ------------------- **/
+/* ------------------- Root Navigator ------------------- */
 function RootNavigator() {
   const { userToken, loading } = useContext(AuthContext);
   const [hasOnboarded, setHasOnboarded] = useState(false);
@@ -167,17 +194,36 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={DefaultTheme}>
-      {userToken ? <AppTabs /> : <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />}
+      {userToken ? (
+        <AppTabs />
+      ) : (
+        <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />
+      )}
     </NavigationContainer>
   );
 }
-
-/** ------------------- App (entry) ------------------- **/
+/* ------------------- App (Entry Point) ------------------- */
 export default function App() {
+  // ✅ Test backend connection once app starts
+  useEffect(() => {
+    api
+      .get("/health")
+      .then((res) => {
+        console.log("✅ Backend connected:", res.data);
+      })
+      .catch((err) => {
+        console.error("❌ Backend connection failed:", err.message);
+      });
+  }, []);
+
   return (
     <AuthProvider>
-      <StatusBar style="auto" />
-      <RootNavigator />
+      <ActivityProvider>
+        <StatusBar style="auto" />
+        <RootNavigator />
+        {/* ✅ Add this to enable toasts globally */}
+        <Toast />
+      </ActivityProvider>
     </AuthProvider>
   );
 }

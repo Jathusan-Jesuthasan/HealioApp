@@ -1,182 +1,168 @@
-import React, { useState, useCallback } from "react";
+// screens/JournalScreen.jsx
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
   FlatList,
-  StyleSheet,
   SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
+  Platform,
+  StatusBar,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../config/api";
+import { showSyncedToast } from "../utils/toastUtils";
+import { useActivity } from "../context/ActivityContext";
 
 export default function JournalScreen() {
   const [entry, setEntry] = useState("");
-  const [journalHistory, setJournalHistory] = useState([]);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [journals, setJournals] = useState([]);
+  const { triggerRefresh } = useActivity();
+  const userId = "demo_user"; // later use AuthContext userId
 
-  // Load journal history from AsyncStorage
-  const loadJournalHistory = async () => {
-    try {
-      const history = await AsyncStorage.getItem("journalHistory");
-      if (history) {
-        setJournalHistory(JSON.parse(history));
-      } else {
-        setJournalHistory([]);
-      }
-    } catch (error) {
-      console.log("Failed to load journal history", error);
-    }
-  };
+  // 🧠 Load existing journal entries
+  useEffect(() => {
+    const loadJournals = async () => {
+      const saved = await AsyncStorage.getItem("journals");
+      if (saved) setJournals(JSON.parse(saved));
+    };
+    loadJournals();
+  }, []);
 
-  // Trigger loading when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      loadJournalHistory();
-    }, [])
-  );
+  // 💾 Save new entry
+  const handleSave = async () => {
+    if (!entry.trim()) return Alert.alert("✏️ Empty Entry", "Please write something first.");
 
-  // Save a new journal entry
-  const saveEntry = async () => {
-    if (entry.trim() === "") return;
-    const newEntry = { id: Date.now().toString(), text: entry };
-    const updatedHistory = [newEntry, ...journalHistory];
+    const now = new Date();
+    const newEntry = {
+      id: Date.now().toString(),
+      text: entry.trim(),
+      date: now.toLocaleDateString(),
+      time: now.toLocaleTimeString(),
+    };
 
     try {
-      await AsyncStorage.setItem(
-        "journalHistory",
-        JSON.stringify(updatedHistory)
-      );
-      setJournalHistory(updatedHistory);
+      const updated = [newEntry, ...journals];
+      setJournals(updated);
+      await AsyncStorage.setItem("journals", JSON.stringify(updated));
+
+      // ✅ Send to MongoDB
+      await api.post("/api/journals/add", {
+        userId,
+        text: newEntry.text,
+        date: now,
+      });
+
+      showSyncedToast("📝 Journal Synced to Dashboard!");
+      triggerRefresh();
       setEntry("");
-      setSuccessMsg("Journal saved successfully!");
-      setTimeout(() => setSuccessMsg(""), 2000);
-    } catch (error) {
-      console.log("Failed to save journal", error);
+    } catch (err) {
+      console.error("Journal save error:", err);
+      Alert.alert("⚠️ Error", "Could not save journal entry.");
     }
   };
-
-  // Delete a journal entry
-  const deleteEntry = (id) => {
-    Alert.alert(
-      "Delete Entry",
-      "Do you want to delete this journal entry?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes",
-          onPress: async () => {
-            const updatedHistory = journalHistory.filter((item) => item.id !== id);
-            try {
-              await AsyncStorage.setItem(
-                "journalHistory",
-                JSON.stringify(updatedHistory)
-              );
-              setJournalHistory(updatedHistory);
-            } catch (error) {
-              console.log("Failed to delete journal", error);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.historyCard}>
-      <Text style={{ flex: 1 }}>{item.text}</Text>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => deleteEntry(item.id)}
-      >
-        <Text style={styles.deleteButtonText}>Delete ❌</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.container}>
-          <Text style={styles.title}>Your Journal</Text>
+    <SafeAreaView style={styles.safe}>
+      <LinearGradient colors={["#F5F7FA", "#E0F2FE"]} style={styles.container}>
+        <Text style={styles.title}>Daily Journal</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Write something..."
-            value={entry}
-            onChangeText={setEntry}
-            multiline
-          />
+        <TextInput
+          style={styles.input}
+          placeholder="Reflect on your day..."
+          placeholderTextColor="#94A3B8"
+          value={entry}
+          onChangeText={setEntry}
+          multiline
+        />
 
-          <TouchableOpacity style={styles.saveButton} onPress={saveEntry}>
-            <Text style={styles.saveButtonText}>Save Journal ✏️</Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <Ionicons name="save-outline" size={20} color="#fff" />
+          <Text style={styles.saveText}>Save Entry</Text>
+        </TouchableOpacity>
 
-          {successMsg ? <Text style={styles.successMsg}>{successMsg}</Text> : null}
-
-          {journalHistory.length > 0 && (
+        {journals.length > 0 && (
+          <View style={styles.historyBox}>
+            <Text style={styles.sectionTitle}>🕓 Past Entries</Text>
             <FlatList
-              data={journalHistory}
+              data={journals.slice(0, 10)}
               keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={styles.historyList}
+              renderItem={({ item }) => (
+                <View style={styles.entryRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.entryText}>{item.text}</Text>
+                    <Text style={styles.entryDate}>
+                      {item.date} • {item.time}
+                    </Text>
+                  </View>
+                </View>
+              )}
             />
-          )}
-        </View>
-      </KeyboardAvoidingView>
+          </View>
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f8f9fa" },
+  safe: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 15 },
+  title: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1E3A8A",
+    marginBottom: 16,
+    textAlign: "center",
+  },
   input: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 16,
-    minHeight: 80,
+    borderRadius: 14,
+    padding: 16,
+    minHeight: 120,
     textAlignVertical: "top",
+    fontSize: 16,
+    color: "#1E293B",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
   },
-  saveButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 10,
-  },
-  saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "500" },
-  successMsg: { color: "green", marginTop: 10, fontWeight: "500" },
-  historyList: { marginTop: 20, paddingBottom: 50 },
-  historyCard: {
+  saveBtn: {
     flexDirection: "row",
+    backgroundColor: "#10B981",
+    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 6,
+    marginBottom: 16,
+  },
+  saveText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  historyBox: {
     backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    flex: 1,
   },
-  deleteButton: {
-    marginLeft: 10,
-    backgroundColor: "#FF5252",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5,
+  sectionTitle: { fontWeight: "700", color: "#1E293B", marginBottom: 8 },
+  entryRow: {
+    borderBottomColor: "#E2E8F0",
+    borderBottomWidth: 1,
+    paddingVertical: 10,
   },
-  deleteButtonText: { color: "#fff", fontWeight: "500" },
+  entryText: { color: "#334155", fontSize: 15 },
+  entryDate: { color: "#64748B", fontSize: 12, marginTop: 4 },
 });

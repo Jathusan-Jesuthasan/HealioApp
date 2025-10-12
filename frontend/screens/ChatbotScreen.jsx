@@ -1,4 +1,3 @@
-// screens/ChatbotScreen.jsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   SafeAreaView,
@@ -9,16 +8,15 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Footer from "../components/BottomBar.jsx";
 import { chatWithLLM } from "../services/llmClient.js";
+import api from "../config/api";
 
-/* ---------------- rules (unchanged) ---------------- */
+/* ---------------- rules ---------------- */
 const norm = (s = "") =>
   s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 
@@ -54,7 +52,7 @@ function ruleReply(userText) {
   };
 }
 
-/* ---------------- UI constants ---------------- */
+/* ---------------- constants ---------------- */
 const BG = "#F6F7FB";
 const BOT = "#EAF1FF";
 const USER = "#EAFBF2";
@@ -62,7 +60,7 @@ const FOOTER_HEIGHT = 64;
 const INPUT_MIN = 44;
 const INPUT_MAX = 120;
 
-/* small helper for date separators */
+/* date label helper */
 const dayLabel = (ts) => {
   const d = new Date(ts);
   const today = new Date();
@@ -76,6 +74,7 @@ const dayLabel = (ts) => {
 
 export default function ChatbotScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -84,11 +83,12 @@ export default function ChatbotScreen({ navigation }) {
   const [showHero, setShowHero] = useState(true);
   const [inputHeight, setInputHeight] = useState(INPUT_MIN);
 
-  const scrollRef = useRef(null);
+  const userId = "demo_user"; // ✅ Replace with AuthContext user later
 
   const scrollToBottom = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
+  /* ---------- Keyboard listener ---------- */
   useEffect(() => {
     const show = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
@@ -104,42 +104,53 @@ export default function ChatbotScreen({ navigation }) {
     };
   }, []);
 
+  /* ---------- Load chat history from backend ---------- */
   useEffect(() => {
-    (async () => {
-      const saved = await AsyncStorage.getItem("chatHistory");
-      const raw = saved ? JSON.parse(saved) : [];
-      const sanitized = Array.isArray(raw)
-        ? raw.filter((m) => {
-            if (m.role === "chips") return true;
-            if (m.role === "user" || m.role === "bot")
-              return typeof m.text === "string" && m.text.trim().length > 0;
-            return false;
-          })
-        : [];
-      setMessages(
-        sanitized.length
-          ? sanitized
-          : [
-              {
-                id: String(Date.now()),
-                role: "bot",
-                text:
-                  "Welcome to Healio Chat 🤖\nI’m a motivational, non-clinical companion. Tell me how you’re doing, and I’ll suggest gentle next steps.",
-                ts: Date.now(),
-              },
-            ]
-      );
-      setShowHero(true);
-    })();
+    const loadChat = async () => {
+      try {
+        const res = await api.get(`/api/chat/${userId}`);
+        if (res.data?.data?.length) {
+          setMessages(
+            res.data.data.map((m) => ({
+              id: m._id,
+              role: m.role,
+              text: m.text,
+              ts: new Date(m.createdAt).getTime(),
+            }))
+          );
+        } else {
+          setMessages([
+            {
+              id: String(Date.now()),
+              role: "bot",
+              text:
+                "Welcome to Healio Chat 🤖\nI’m a motivational, non-clinical companion. Tell me how you’re doing, and I’ll suggest gentle next steps.",
+              ts: Date.now(),
+            },
+          ]);
+        }
+        setShowHero(true);
+      } catch (err) {
+        console.log("⚠️ Could not load chat:", err.message);
+      }
+    };
+    loadChat();
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.setItem("chatHistory", JSON.stringify(messages));
-  }, [messages]);
+  /* ---------- Save to backend ---------- */
+  const saveMessageToDB = async (role, text) => {
+    try {
+      await api.post("/api/chat/add", { userId, role, text });
+    } catch (err) {
+      console.log("❌ Chat save failed:", err.message);
+    }
+  };
 
+  /* ---------- Add message ---------- */
   const addMsg = (role, content) => {
     const m = { id: String(Date.now() + Math.random()), role, text: content, ts: Date.now() };
     setMessages((prev) => [...prev, m]);
+    saveMessageToDB(role, content);
   };
 
   const addChips = (chips) =>
@@ -148,12 +159,12 @@ export default function ChatbotScreen({ navigation }) {
       { id: String(Date.now() + Math.random()), role: "chips", chips, ts: Date.now() },
     ]);
 
+  /* ---------- Handle send ---------- */
   const handleSend = async () => {
     const input = text.trim();
     if (!input) return;
 
     if (showHero) setShowHero(false);
-
     addMsg("user", input);
     setText("");
     setInputHeight(INPUT_MIN);
@@ -191,11 +202,12 @@ export default function ChatbotScreen({ navigation }) {
     scrollToBottom();
   };
 
+  /* ---------- Quick actions ---------- */
   const onTapChip = (chip) => {
     const map = {
-      "Start Meditation": () => navigation.navigate("Meditation", { activity: "Meditation" }),
-      "Breathing 4-7-8": () => navigation.navigate("Meditation", { activity: "Meditation" }),
-      "Grounding Exercise": () => navigation.navigate("Meditation", { activity: "Meditation" }),
+      "Start Meditation": () => navigation.navigate("Meditation"),
+      "Breathing 4-7-8": () => navigation.navigate("Meditation"),
+      "Grounding Exercise": () => navigation.navigate("Meditation"),
       "Open Journal": () => navigation.navigate("Journal"),
       "Log Mood": () => navigation.navigate("ActivityDetail", { activity: "Journaling" }),
       "Set a Goal": () => navigation.navigate("GoalSetup"),
@@ -206,10 +218,7 @@ export default function ChatbotScreen({ navigation }) {
     scrollToBottom();
   };
 
-  const bottomSpacer =
-    (kbOpen ? 8 : FOOTER_HEIGHT + 8) + insets.bottom + Math.max(inputHeight, INPUT_MIN);
-
-  /* group by day to insert separators */
+  /* ---------- Group messages by date ---------- */
   const sections = [];
   let lastLabel = "";
   messages.forEach((m) => {
@@ -221,46 +230,27 @@ export default function ChatbotScreen({ navigation }) {
     sections.push({ type: "msg", ...m });
   });
 
+  /* ---------- UI ---------- */
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header (subtle card) */}
+      {/* Header */}
       <View style={styles.headerCard}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Image
-            source={require("../assets/robo4.jpg")}
-            style={styles.avatar}
-            resizeMode="cover"
-          />
+          <Image source={require("../assets/robo4.jpg")} style={styles.avatar} resizeMode="cover" />
           <Text style={styles.headerTitle}>Healio AI Chatbot</Text>
         </View>
       </View>
 
-      {/* Hero (first visit only) */}
-      {showHero && (
-        <View style={styles.hero}>
-          <Text style={styles.heroText}>
-            I’m here for calm, supportive conversation. If you’re in crisis, please contact local
-            emergency services.
-          </Text>
-          {!kbOpen && (
-            <Image
-              source={require("../assets/robo4.jpg")}
-              style={styles.illustration}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      )}
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.select({ ios: 8, android: 0 })}
-      >
+      {/* Chat Area */}
+      <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 6, paddingBottom: bottomSpacer }}
+          contentContainerStyle={{
+            paddingHorizontal: 14,
+            paddingTop: 6,
+            paddingBottom: FOOTER_HEIGHT + 120,
+          }}
           onContentSizeChange={scrollToBottom}
         >
           {sections.map((it) =>
@@ -279,10 +269,23 @@ export default function ChatbotScreen({ navigation }) {
             ) : (
               <View
                 key={it.id}
-                style={[styles.bubbleRow, it.role === "user" ? { justifyContent: "flex-end" } : null]}
+                style={[
+                  styles.bubbleRow,
+                  it.role === "user" ? { justifyContent: "flex-end" } : null,
+                ]}
               >
-                <View style={[styles.bubble, it.role === "user" ? styles.userBubble : styles.botBubble]}>
-                  <Text style={[styles.bubbleText, it.role === "user" ? styles.userText : styles.botText]}>
+                <View
+                  style={[
+                    styles.bubble,
+                    it.role === "user" ? styles.userBubble : styles.botBubble,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.bubbleText,
+                      it.role === "user" ? styles.userText : styles.botText,
+                    ]}
+                  >
                     {it.text}
                   </Text>
                 </View>
@@ -300,39 +303,47 @@ export default function ChatbotScreen({ navigation }) {
           )}
         </ScrollView>
 
-        {/* Input bar (pill) */}
-        <View style={[styles.inputBar, { marginBottom: (kbOpen ? 8 : FOOTER_HEIGHT + 8) + insets.bottom }]}>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.6}>
-            <Text style={{ fontSize: 18 }}>＋</Text>
-          </TouchableOpacity>
+        {/* Input Bar */}
+        <View
+          style={[
+            styles.inputBarContainer,
+            { paddingBottom: insets.bottom + (Platform.OS === "web" ? 80 : 70) },
+          ]}
+        >
+          <View style={styles.inputBar}>
+            <TouchableOpacity style={styles.addBtn} activeOpacity={0.6}>
+              <Text style={{ fontSize: 18 }}>＋</Text>
+            </TouchableOpacity>
 
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Type a message…"
-            placeholderTextColor="#9CA3AF"
-            style={[styles.input, { height: Math.min(Math.max(INPUT_MIN, inputHeight), INPUT_MAX) }]}
-            multiline
-            numberOfLines={1}
-            maxLength={2000}
-            returnKeyType="send"
-            onFocus={() => showHero && setShowHero(false)}
-            onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
-            onSubmitEditing={() => text.trim() && handleSend()}
-          />
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="Type a message…"
+              placeholderTextColor="#9CA3AF"
+              style={[
+                styles.input,
+                { height: Math.min(Math.max(INPUT_MIN, inputHeight), INPUT_MAX) },
+              ]}
+              multiline
+              numberOfLines={1}
+              maxLength={2000}
+              returnKeyType="send"
+              onFocus={() => showHero && setShowHero(false)}
+              onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
+              onSubmitEditing={() => text.trim() && handleSend()}
+            />
 
-          <TouchableOpacity
-            style={[styles.sendBtn, { opacity: text.trim() ? 1 : 0.5 }]}
-            onPress={handleSend}
-            disabled={!text.trim()}
-            activeOpacity={0.8}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>➤</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sendBtn, { opacity: text.trim() ? 1 : 0.5 }]}
+              onPress={handleSend}
+              disabled={!text.trim()}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>➤</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </KeyboardAvoidingView>
-
-      <Footer />
+      </View>
     </SafeAreaView>
   );
 }
@@ -340,7 +351,6 @@ export default function ChatbotScreen({ navigation }) {
 /* ---------------- styles ---------------- */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
-
   headerCard: {
     backgroundColor: "#E9F2FF",
     marginHorizontal: 16,
@@ -353,23 +363,6 @@ const styles = StyleSheet.create({
   },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#fff" },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-
-  hero: {
-    marginHorizontal: 16,
-    marginBottom: 4,
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#EAECEF",
-    padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
-  },
-  heroText: { color: "#475569", lineHeight: 18 },
-  illustration: { width: "100%", height: 110, marginTop: 10, borderRadius: 12 },
-
   separator: {
     alignSelf: "center",
     backgroundColor: "#EEF2FF",
@@ -381,7 +374,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   separatorText: { color: "#4C5A7D", fontWeight: "700", fontSize: 11 },
-
   bubbleRow: { paddingVertical: 6, flexDirection: "row" },
   bubble: {
     maxWidth: "82%",
@@ -399,7 +391,6 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 16, lineHeight: 22 },
   botText: { color: "#0F172A" },
   userText: { color: "#0B5F42" },
-
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 4 },
   chip: {
     backgroundColor: "#ffffff",
@@ -410,9 +401,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   chipText: { color: "#0F172A", fontWeight: "700", fontSize: 12 },
-
+  inputBarContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#F6F7FB",
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderColor: "#E5E7EB",
+  },
   inputBar: {
-    marginHorizontal: 12,
     flexDirection: "row",
     alignItems: "flex-end",
     backgroundColor: "#fff",
@@ -452,7 +452,17 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     marginLeft: 4,
   },
-
-  typingWrap: { flexDirection: "row", alignItems: "center", paddingLeft: 8, paddingTop: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#A5B4FC", marginRight: 4 },
+  typingWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 8,
+    paddingTop: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#9CA3AF",
+    marginHorizontal: 2,
+  },
 });

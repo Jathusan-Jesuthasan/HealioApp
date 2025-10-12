@@ -1,62 +1,288 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, Button, StyleSheet, ScrollView, SafeAreaView, Platform, StatusBar } from "react-native";
-import { logActivity } from "../utils/logActivity.jsx";
+// screens/ExerciseDetailScreen.jsx
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Animated,
+  Easing,
+  FlatList,
+  Alert,
+  Platform,
+  StatusBar,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import LottieView from "lottie-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "../config/api";
+import { showSyncedToast } from "../utils/toastUtils";
+import { useActivity } from "../context/ActivityContext";
 
-export default function ExerciseDetailScreen({ route }) {
-  const { exercise } = route.params;
-  const [timeLeft, setTimeLeft] = useState(30);
+export default function ExerciseDetailScreen({ route, navigation }) {
+  // ✅ Handle missing params safely
+  const exercise = route?.params?.exercise || { name: "Unknown Exercise" };
 
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const { triggerRefresh } = useActivity();
+  const scale = useRef(new Animated.Value(1)).current;
+  const animationRef = useRef(null);
+  const userId = "demo_user"; // later replace with AuthContext userId
+
+  /* ---------- Exercise Info ---------- */
+  const exerciseInfo = {
+    "Push-ups": {
+      instruction: "Keep your body straight. Lower and push back up smoothly.",
+      animation: require("../assets/lottie/pushup.json"),
+    },
+    Squats: {
+      instruction: "Feet apart, sit back, keep your knees behind toes.",
+      animation: require("../assets/lottie/squat.json"),
+    },
+    Plank: {
+      instruction: "Hold body straight, elbows below shoulders.",
+      animation: require("../assets/lottie/plank.json"),
+    },
+    "Jumping Jacks": {
+      instruction: "Jump with legs apart, arms overhead, then back.",
+      animation: require("../assets/lottie/jumping.json"),
+    },
+  };
+
+  const { instruction, animation } = exerciseInfo[exercise.name] || {};
+
+  /* ---------- Timer ---------- */
   useEffect(() => {
-    const timer = timeLeft > 0 && setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    if (timeLeft === 0) {
-      logActivity(exercise.name, exercise.duration);
+    let t;
+    if (running) t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [running]);
+
+  /* ---------- Animation ---------- */
+  useEffect(() => {
+    if (running) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+      animationRef.current?.play();
+    } else {
+      animationRef.current?.pause();
     }
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [running]);
 
-  const instructions = {
-    "Push-ups": "Place hands shoulder-width apart. Lower your body and push back up.",
-    Squats: "Stand with feet shoulder-width. Lower down and rise back up.",
-    Plank: "Hold your body straight on elbows and toes.",
-    "Jumping Jacks": "Jump with legs apart, arms overhead, then back together.",
+  /* ---------- Save Session ---------- */
+  const handleSaveSession = async () => {
+    const durationMin = (seconds / 60).toFixed(1);
+    const now = new Date();
+    const session = {
+      id: Date.now().toString(),
+      name: exercise.name,
+      durationMin,
+      date: now.toLocaleDateString(),
+      time: now.toLocaleTimeString(),
+    };
+
+    try {
+      const old = (await AsyncStorage.getItem("exerciseSessions")) || "[]";
+      const prev = JSON.parse(old);
+      const updated = [session, ...prev];
+      await AsyncStorage.setItem("exerciseSessions", JSON.stringify(updated));
+      setSessions(updated);
+
+      // ✅ Log outgoing payload clearly
+      console.log("📤 Sending activity →", {
+        userId,
+        type: "Exercise",
+        name: exercise.name,
+        duration: parseFloat(durationMin),
+        date: now,
+        time: session.time,
+      });
+
+      // ✅ Send to backend
+      const res = await api.post("/api/activities/add", {
+        userId,
+        type: "Exercise",
+        name: exercise.name,
+        duration: parseFloat(durationMin),
+        date: now,
+        time: session.time,
+      });
+      console.log("✅ Activity saved to Mongo:", res.data);
+
+      showSyncedToast("💪 Activity Synced to Dashboard!");
+      triggerRefresh();
+    } catch (err) {
+      console.error("❌ Exercise save error:", err.response?.data || err.message);
+      Alert.alert("⚠️ Save Failed", "Could not save exercise session. Please retry.");
+    }
   };
 
-  const reps = {
-    "Push-ups": 15,
-    Squats: 20,
-    Plank: "30 sec",
-    "Jumping Jacks": 30,
-  };
+  /* ---------- Load Previous Sessions ---------- */
+  useEffect(() => {
+    const load = async () => {
+      const data = await AsyncStorage.getItem("exerciseSessions");
+      if (data) setSessions(JSON.parse(data));
+    };
+    load();
+  }, []);
 
+  const formatTime = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  /* ---------- UI ---------- */
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <LinearGradient colors={["#E0F2FE", "#F8FAFC"]} style={styles.bg}>
         <Text style={styles.title}>{exercise.name}</Text>
-        <Text style={styles.instruction}>{instructions[exercise.name]}</Text>
-        <Text style={styles.reps}>Reps/Time: {reps[exercise.name]}</Text>
-        <Text style={styles.timer}>Timer: {timeLeft}s</Text>
-        <View style={styles.buttonContainer}>
-          <Button title="Restart Timer" onPress={() => setTimeLeft(30)} />
+        <Text style={styles.instruction}>{instruction || "Stay active and move!"}</Text>
+
+        <Animated.View style={[styles.animationWrap, { transform: [{ scale }] }]}>
+          {animation ? (
+            <LottieView
+              ref={animationRef}
+              source={animation}
+              autoPlay={false}
+              loop
+              style={styles.animation}
+            />
+          ) : (
+            <View style={styles.noAnimBox}>
+              <Text style={{ color: "#64748B" }}>🎬 No preview available</Text>
+            </View>
+          )}
+        </Animated.View>
+
+        <Text style={styles.timer}>{formatTime(seconds)}</Text>
+
+        {/* Controls */}
+        <View style={styles.btnRow}>
+          {!running ? (
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: "#10B981" }]}
+              onPress={() => setRunning(true)}
+            >
+              <Ionicons name="play" size={22} color="#fff" />
+              <Text style={styles.btnText}>Start</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: "#F59E0B" }]}
+              onPress={() => setRunning(false)}
+            >
+              <Ionicons name="pause" size={22} color="#fff" />
+              <Text style={styles.btnText}>Pause</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: "#3B82F6" }]}
+            onPress={() => {
+              setRunning(false);
+              handleSaveSession();
+              setSeconds(0);
+            }}
+          >
+            <Ionicons name="stop" size={22} color="#fff" />
+            <Text style={styles.btnText}>End</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+
+        {/* History */}
+        {sessions.length > 0 && (
+          <View style={styles.historyBox}>
+            <Text style={styles.sectionTitle}>📅 Past Sessions</Text>
+            <FlatList
+              data={sessions.filter((s) => s.name === exercise.name).slice(0, 8)}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.sessionRow}>
+                  <Text style={styles.sessionDate}>
+                    {item.date} · {item.time}
+                  </Text>
+                  <Text style={styles.sessionDur}>{item.durationMin} min</Text>
+                </View>
+              )}
+            />
+          </View>
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 }
 
+/* ---------- Styles ---------- */
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FAFC",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
-  container: {
-    padding: 20,
+  bg: { flex: 1, alignItems: "center", padding: 20 },
+  title: { fontSize: 28, fontWeight: "800", color: "#1E3A8A", marginBottom: 6 },
+  instruction: { textAlign: "center", color: "#475569", marginBottom: 14 },
+  animationWrap: { width: 250, height: 250, justifyContent: "center" },
+  animation: { width: 220, height: 220 },
+  noAnimBox: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "flex-start",
   },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
-  instruction: { fontSize: 18, textAlign: "center", marginBottom: 20 },
-  reps: { fontSize: 16, marginBottom: 20 },
-  timer: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  buttonContainer: { width: "80%" },
+  timer: { fontSize: 38, fontWeight: "bold", color: "#1E40AF", marginTop: 10 },
+  btnRow: { flexDirection: "row", gap: 14, marginTop: 24 },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  historyBox: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginTop: 30,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  sectionTitle: { fontWeight: "700", color: "#1E293B", marginBottom: 8 },
+  sessionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    borderBottomColor: "#E5E7EB",
+    borderBottomWidth: 1,
+  },
+  sessionDate: { color: "#374151", fontSize: 14 },
+  sessionDur: { color: "#10B981", fontWeight: "700" },
 });

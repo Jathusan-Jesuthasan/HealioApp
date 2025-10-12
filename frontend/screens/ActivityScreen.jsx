@@ -8,11 +8,10 @@ import {
   Platform,
   Pressable,
   Animated,
-  FlatList,
 } from "react-native";
-import Header from "../components/HeaderBar.jsx";
-import Footer from "../components/BottomBar.jsx";
+import { LinearGradient } from "expo-linear-gradient";
 
+/* ───────────────  CARD COMPONENT  ─────────────── */
 function HubCard({ icon, title, onPress }) {
   const [highlighted, setHighlighted] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -21,13 +20,13 @@ function HubCard({ icon, title, onPress }) {
     Animated.spring(scale, {
       toValue: v,
       useNativeDriver: true,
-      friction: 8,
+      friction: 7,
       tension: 120,
     }).start();
 
   const onIn = () => {
     setHighlighted(true);
-    animateTo(1.02);
+    animateTo(1.05);
   };
   const onOut = () => {
     setHighlighted(false);
@@ -42,13 +41,13 @@ function HubCard({ icon, title, onPress }) {
       {...(Platform.OS === "web"
         ? { onHoverIn: onIn, onHoverOut: onOut }
         : {})}
+      android_ripple={{ color: "rgba(59,130,246,0.08)", borderless: false }}
       style={({ pressed }) => [
         styles.card,
         (pressed || highlighted) && styles.cardActive,
       ]}
-      android_ripple={{ color: "rgba(59,130,246,0.08)", borderless: false }}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View style={[styles.cardContent, { transform: [{ scale }] }]}>
         <Text style={styles.cardIcon}>{icon}</Text>
         <Text style={styles.cardTitle}>{title}</Text>
       </Animated.View>
@@ -56,112 +55,163 @@ function HubCard({ icon, title, onPress }) {
   );
 }
 
+/* ───────────────  MAIN SCREEN  ─────────────── */
 export default function ActivityScreen({ navigation }) {
   const activities = [
-    { key: "Meditation", icon: "🧘", title: "Meditation", go: () => navigation.navigate("Meditation") },
-    { key: "Journaling", icon: "📓", title: "Journaling", go: () => navigation.navigate("Journal") },
-    { key: "Exercise", icon: "💪", title: "Exercise", go: () => navigation.navigate("ExerciseList") },
-    { key: "Music", icon: "🎵", title: "Music", go: () => navigation.navigate("ActivityDetail", { activity: "Music" }) },
+    {
+      key: "Meditation",
+      icon: "🧘‍♀️",
+      title: "Meditation",
+      go: () => navigation.navigate("Meditation"),
+    },
+    {
+      key: "Journaling",
+      icon: "📓",
+      title: "Journaling",
+      go: () => navigation.navigate("Journal"),
+    },
+    {
+      key: "Exercise",
+      icon: "💪",
+      title: "Exercise",
+      go: () => navigation.navigate("ExerciseList"),
+    },
+    {
+      key: "Music",
+      icon: "🎵",
+      title: "Music Therapy",
+      go: () => navigation.navigate("Music"),
+    },
   ];
 
   const tools = [
-    { key: "GoalSetup", icon: "🎯", title: "Goal Setup", go: () => navigation.navigate("GoalSetup") },
-    { key: "Progress", icon: "📊", title: "Progress", go: () => navigation.navigate("Progress") },
-    { key: "Rewards", icon: "🏆", title: "Rewards", go: () => navigation.navigate("Rewards") },
+    {
+      key: "GoalSetup",
+      icon: "🎯",
+      title: "Set Goals",
+      go: () => navigation.navigate("GoalSetup"),
+    },
+    {
+      key: "ActivityDashboard",
+      icon: "📊",
+      title: "Activity Dashboard",
+      go: () => navigation.navigate("ActivityDashboard"),
+    },
+    {
+      key: "Progress",
+      icon: "📊",
+      title: "Progress",
+      go: () => navigation.navigate("Progress"),
+    },
+    {
+      key: "Rewards",
+      icon: "🏆",
+      title: "Rewards",
+      go: () => navigation.navigate("Rewards"),
+    },
   ];
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.wrap}>
-        <Header title="Activity Hub" />
-
+      <LinearGradient colors={["#f0f7ff", "#f8fafc"]} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Activities Block */}
+          {/* Header */}
+          <View style={styles.headerWrap}>
+            <Text style={styles.headerEmoji}>🌿</Text>
+            <Text style={styles.headerTitle}>Your Wellness Hub</Text>
+            <Text style={styles.headerSubtitle}>
+              Explore activities & tools to lift your mood
+            </Text>
+          </View>
+
+          {/* Activities Section */}
           <View style={styles.block}>
             <Text style={styles.blockTitle}>Activities</Text>
-            <Text style={styles.blockSub}>
-              
-            </Text>
-
             <View style={styles.grid}>
               {activities.map((a) => (
                 <View key={a.key} style={styles.cell}>
                   <HubCard icon={a.icon} title={a.title} onPress={a.go} />
                 </View>
               ))}
-              {activities.length % 2 !== 0 && <View style={styles.cell} />}
             </View>
           </View>
 
-          {/* Tools & Goals Block */}
+          {/* Tools Section */}
           <View style={styles.block}>
             <Text style={styles.blockTitle}>Tools & Goals</Text>
-            <Text style={styles.blockSub}>
-             
-            </Text>
-
-            <FlatList
-              data={tools}
-              keyExtractor={(i) => i.key}
-              renderItem={({ item }) => (
-                <View style={{ width: 140, marginRight: 12 }}>
-                  <HubCard
-                    icon={item.icon}
-                    title={item.title}
-                    onPress={item.go}
-                  />
+            <View style={styles.grid}>
+              {tools.map((t) => (
+                <View key={t.key} style={styles.cell}>
+                  <HubCard icon={t.icon} title={t.title} onPress={t.go} />
                 </View>
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 8 }}
-            />
+              ))}
+            </View>
           </View>
-        </ScrollView>
 
-        <Footer />
-      </View>
+          {/* Footer spacing */}
+          <View style={{ height: 80 }} />
+        </ScrollView>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
 
-const GAP = 12;
+/* ───────────────  STYLES  ─────────────── */
+const GAP = 14;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fbfcf8ff" },
-  wrap: { flex: 1 },
+  safe: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 96,
-    gap: 16,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 60,
+    gap: 20,
   },
 
+  /* Header Section */
+  headerWrap: {
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  headerEmoji: {
+    fontSize: 40,
+    marginBottom: 6,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#64748B",
+    marginTop: 4,
+    textAlign: "center",
+  },
+
+  /* Section Containers */
   block: {
-    backgroundColor: "rgba(205, 211, 214, 1)",
-    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 20,
     padding: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2,
   },
   blockTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  blockSub: {
-    marginTop: 4,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1E293B",
     marginBottom: 12,
-    color: "#6B7280",
-    fontSize: 13,
   },
-
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -173,28 +223,42 @@ const styles = StyleSheet.create({
     marginBottom: GAP,
   },
 
+  /* Cards */
   card: {
-    height: 110,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+    height: 115,
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     padding: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardActive: {
     borderColor: "#3B82F6",
     shadowColor: "#3B82F6",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cardIcon: { fontSize: 28, textAlign: "center", marginBottom: 6 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#1F2937", textAlign: "center" },
+  cardContent: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardIcon: {
+    fontSize: 34,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+  },
 });
