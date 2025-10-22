@@ -69,7 +69,7 @@ Each log includes:
 router.get("/risk-history", protect, async (req, res) => {
   try {
     const userId = req.user._id;
-    const history = await AiAnalysis.find({ user: userId }).sort({ createdAt: -1 });
+    const history = await AIRiskResult.find({ user: userId }).sort({ date: -1 });
     res.json(history);
   } catch (err) {
     console.error("❌ Error fetching AI analysis history:", err);

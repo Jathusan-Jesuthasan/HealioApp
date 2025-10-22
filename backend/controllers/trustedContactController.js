@@ -284,6 +284,7 @@ function generateRiskAlertEmail(userName, contactName, riskResult) {
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
+        .logo { max-width: 180px; height: auto; margin-bottom: 15px; }
         .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
         .alert-badge { display: inline-block; background-color: ${riskColor}; color: #ffffff; padding: 8px 16px; border-radius: 20px; font-weight: bold; margin-top: 10px; }
         .content { padding: 30px 20px; }
@@ -307,6 +308,7 @@ function generateRiskAlertEmail(userName, contactName, riskResult) {
     <body>
       <div class="container">
         <div class="header">
+          <img src="${process.env.HEALIO_LOGO_URL || 'https://via.placeholder.com/180x60/667eea/ffffff?text=Healio'}" alt="Healio Logo" class="logo" />
           <h1>🚨 Mental Health Alert</h1>
           <span class="alert-badge">${riskResult.riskLevel} RISK LEVEL</span>
         </div>
@@ -393,6 +395,7 @@ function generateConfirmationEmail(userName, contactName) {
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f3f4f6; }
         .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
         .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; }
+        .logo { max-width: 180px; height: auto; margin-bottom: 15px; }
         .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
         .icon { font-size: 48px; margin-bottom: 10px; }
         .content { padding: 30px 20px; }
@@ -414,6 +417,7 @@ function generateConfirmationEmail(userName, contactName) {
     <body>
       <div class="container">
         <div class="header">
+          <img src="${process.env.HEALIO_LOGO_URL || 'https://via.placeholder.com/180x60/667eea/ffffff?text=Healio'}" alt="Healio Logo" class="logo" />
           <div class="icon">🛡️</div>
           <h1>Trusted Contact Confirmation</h1>
           <span class="badge">Mental Health Support</span>
