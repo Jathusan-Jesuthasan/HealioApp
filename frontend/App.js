@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import BottomNavBar from './components/BottomNavBar';
 import HeaderBar from './components/HeaderBar';
+import Colors from './utils/Colors'; // ✅ Safe import
 
 // ---- Core screens ----
 import WelcomeScreen from './screens/WelcomeScreen';
@@ -39,6 +40,7 @@ import LogoutScreen from './screens/LogoutScreen';
 import RiskDetectionScreen from './screens/RiskDetectionScreen';
 import MoodStatsScreen from './screens/MoodStatsScreen';
 import AIInsightsHistory from './screens/AIInsightsHistory';
+import TrustedRiskAlert from './screens/TrustedRiskAlert';
 
 // ---- Simple stubs ----
 const Stub = ({ label }) => (
@@ -53,11 +55,11 @@ const ActivityScreen = () => <Stub label="Personalized Activity" />;
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// ---- Header HOC ----
+// ---- Safe Header HOC ----
 const withHeader =
   (Component, unreadCount = 3) =>
   (props) => (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: Colors?.background || '#fff' }}>
       <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
       <Component {...props} />
     </View>
@@ -90,7 +92,8 @@ function AppTabs() {
   return (
     <Tab.Navigator
       tabBar={(props) => <BottomNavBar {...props} />}
-      screenOptions={{ headerShown: false }}>
+      screenOptions={{ headerShown: false }}
+    >
       <Tab.Screen name="Home" component={withHeader(DashboardScreen)} />
       <Tab.Screen name="Chat" component={withHeader(ChatScreen)} />
       <Tab.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
@@ -111,7 +114,8 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
       initialRouteName={hasOnboarded ? 'Login' : 'Welcome'}
-      screenOptions={{ headerShown: false }}>
+      screenOptions={{ headerShown: false }}
+    >
       {!hasOnboarded && (
         <>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -127,6 +131,20 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
     </Stack.Navigator>
   );
 }
+
+// ---- App Theme with Colors.js ----
+const AppTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors?.primary || '#F5F7FA',
+    background: Colors?.background || '#F5F7FA',
+    card: Colors?.card || '#FFFFFF',
+    text: Colors?.textPrimary || '#111827',
+    border: Colors?.border || '#E5E7EB',
+    notification: Colors?.accent || '#10B981',
+  },
+};
 
 // ---- Root Navigator ----
 function RootNavigator() {
@@ -157,7 +175,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={DefaultTheme}>
+    <NavigationContainer theme={AppTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {userToken ? (
           <>
@@ -167,6 +185,7 @@ function RootNavigator() {
             <Stack.Screen name="RiskDetail" component={withHeader(RiskDetectionScreen)} />
             <Stack.Screen name="MoodStats" component={withHeader(MoodStatsScreen)} />
             <Stack.Screen name="AIInsightsHistory" component={withHeader(AIInsightsHistory)} />
+            <Stack.Screen name="TrustedPerson" component={withHeader(TrustedRiskAlert)} />
           </>
         ) : (
           <Stack.Screen name="AuthStack">

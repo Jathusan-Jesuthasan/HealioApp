@@ -1,6 +1,6 @@
 // /utils/Colors.js
 
-export const Colors = {
+const Colors = {
   // 🎨 60-30-10 Theme
   primary: '#F5F7FA', // 60% → Soft light gray-blue (Backgrounds)
   secondary: '#4A90E2', // 30% → Calm blue (Nav, headers, highlights)
@@ -62,3 +62,6 @@ export const Colors = {
   dangerLight: '#FEE2E2', // Soft red background
   infoLight: '#DBEAFE', // Soft blue background
 };
+
+export { Colors };
+export default Colors;

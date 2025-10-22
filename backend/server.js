@@ -15,6 +15,7 @@ import moodLogRoutes from "./routes/moodLogRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import trustedContactRoutes from "./routes/trustedContactRoutes.js";
 
 // ----------------- Initialize Express App -----------------
 const app = express();
@@ -67,6 +68,7 @@ app.use("/api/moodlogs", moodLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/trusted-contacts", trustedContactRoutes);
 
 // ----------------- Global Error Handler -----------------
 app.use((err, req, res, next) => {

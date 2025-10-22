@@ -1,5 +1,6 @@
 // backend/controllers/riskController.js
 import AIRiskResult from "../models/AIRiskResult.js";
+import { sendAutomaticRiskAlert } from "./trustedContactController.js";
 
 /**
  * @desc   Fetch latest AI risk analyses (history) for the logged-in user
@@ -8,7 +9,7 @@ import AIRiskResult from "../models/AIRiskResult.js";
  */
 export const getRiskHistory = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     const history = await AIRiskResult.find({ user: userId })
       .sort({ date: -1 })
@@ -54,7 +55,7 @@ export const getRiskHistory = async (req, res) => {
  */
 export const saveRiskAnalysis = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id;
     const {
       wellnessIndex = 0,
       riskLevel = "LOW",
@@ -73,6 +74,17 @@ export const saveRiskAnalysis = async (req, res) => {
     });
 
     await newResult.save();
+
+    // 🚨 Automatically send alert to trusted contacts if risk level is high
+    const highRiskLevels = ["SERIOUS", "STRESS", "ANGER", "ANXIETY"];
+    if (highRiskLevels.includes(riskLevel.toUpperCase())) {
+      console.log(`⚠️ High risk detected (${riskLevel}) - Sending automatic alerts...`);
+      // Send alert in background (don't wait for it)
+      sendAutomaticRiskAlert(userId, newResult._id).catch(err => {
+        console.error("Failed to send automatic alert:", err);
+      });
+    }
+
     res.status(201).json({ message: "AI risk result saved successfully", data: newResult });
   } catch (err) {
     console.error("❌ Error saving AI risk result:", err);
