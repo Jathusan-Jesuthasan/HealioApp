@@ -12,45 +12,8 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { chatWithLLM } from "../services/llmClient.js";
+import { chatWithLLM } from "../services/llmClient";
 import api from "../config/api";
-
-/* ---------------- rules ---------------- */
-const norm = (s = "") =>
-  s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
-
-const rules = [
-  {
-    match: (t) => /\b(hi|hello|hey)\b/.test(t),
-    reply:
-      "Hey there! 👋 I’m your Healio helper. How are you feeling today—okay, good, or not so great?",
-    chips: ["Start Meditation", "Open Journal", "Set a Goal"],
-  },
-  {
-    match: (t) => /\b(stress|stressed|overwhelmed|anxious|anxiety)\b/.test(t),
-    reply:
-      "That sounds heavy. Let’s try 5 minutes of breathing or a short stretch. I can also log your mood so we can spot patterns later.",
-    chips: ["Start Meditation", "Open Journal", "Log Mood"],
-  },
-  {
-    match: (t) =>
-      /\b(self harm|suicide|kill myself|end it|hurt myself|i want to die)\b/.test(t),
-    reply:
-      "I’m really glad you reached out. I’m not a crisis service, but you deserve immediate care. If you’re in danger or considering self-harm, please contact local emergency services or a crisis line (e.g., 988 in the U.S.). If you’d like, we can do a grounding exercise together.",
-    chips: ["Grounding Exercise", "Breathing 4-7-8", "Call a Friend"],
-  },
-];
-
-function ruleReply(userText) {
-  const t = norm(userText);
-  for (const r of rules) if (r.match(t)) return { text: r.reply, chips: r.chips || [] };
-  return {
-    text:
-      "Thanks for sharing. Would you like a quick breathing exercise, a 2-minute journal, or to set a tiny goal for today?",
-    chips: ["Start Meditation", "Open Journal", "Set a Goal"],
-  };
-}
 
 /* ---------------- constants ---------------- */
 const BG = "#F6F7FB";
@@ -60,7 +23,17 @@ const FOOTER_HEIGHT = 64;
 const INPUT_MIN = 44;
 const INPUT_MAX = 120;
 
-/* date label helper */
+/* ---------------- crisis keywords ---------------- */
+const crisisKeywords = [
+  "suicide",
+  "kill myself",
+  "end my life",
+  "hurt myself",
+  "die",
+  "self harm",
+];
+
+/* ---------------- date label helper ---------------- */
 const dayLabel = (ts) => {
   const d = new Date(ts);
   const today = new Date();
@@ -79,32 +52,15 @@ export default function ChatbotScreen({ navigation }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
-  const [kbOpen, setKbOpen] = useState(false);
   const [showHero, setShowHero] = useState(true);
   const [inputHeight, setInputHeight] = useState(INPUT_MIN);
 
-  const userId = "demo_user"; // ✅ Replace with AuthContext user later
+  const userId = "demo_user"; // replace with auth user later
 
   const scrollToBottom = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
-  /* ---------- Keyboard listener ---------- */
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setKbOpen(true)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setKbOpen(false)
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-  /* ---------- Load chat history from backend ---------- */
+  /* ---------- Load chat history ---------- */
   useEffect(() => {
     const loadChat = async () => {
       try {
@@ -137,7 +93,7 @@ export default function ChatbotScreen({ navigation }) {
     loadChat();
   }, []);
 
-  /* ---------- Save to backend ---------- */
+  /* ---------- Save message ---------- */
   const saveMessageToDB = async (role, text) => {
     try {
       await api.post("/api/chat/add", { userId, role, text });
@@ -146,7 +102,7 @@ export default function ChatbotScreen({ navigation }) {
     }
   };
 
-  /* ---------- Add message ---------- */
+  /* ---------- Add message locally + save ---------- */
   const addMsg = (role, content) => {
     const m = { id: String(Date.now() + Math.random()), role, text: content, ts: Date.now() };
     setMessages((prev) => [...prev, m]);
@@ -171,38 +127,50 @@ export default function ChatbotScreen({ navigation }) {
     setTyping(true);
     scrollToBottom();
 
+    /* ---------- Crisis check ---------- */
+    if (crisisKeywords.some((k) => input.toLowerCase().includes(k))) {
+      addMsg(
+        "bot",
+        "💛 I'm really concerned. Please reach out for immediate help. In Sri Lanka, call CCCline at 1333 or Sumithrayo at +94 11 2 682535."
+      );
+      addChips(["Call Helpline", "Talk to a Friend", "Relaxation Exercise"]);
+      setTyping(false);
+      return;
+    }
+
+    /* ---------- Prepare messages for LLM ---------- */
     const historyForLLM = messages
-      .filter(
-        (m) =>
-          (m.role === "user" || m.role === "bot") &&
-          typeof m.text === "string" &&
-          m.text.trim().length > 0
-      )
+      .filter((m) => m.role === "user" || m.role === "bot")
       .slice(-10)
       .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
 
     const llmMessages = [
       {
         role: "system",
-        content:
-          "You are a kind, motivational, non-clinical mental wellness companion. Be empathetic, brief (2–3 sentences), and suggest one small action when helpful.",
+        content: `
+          You are Healio, a kind, motivational, non-clinical mental wellness companion.
+          Only respond to mental health, mood, motivation, stress relief, or mindfulness topics.
+          If the user asks unrelated topics, gently redirect back to mental wellbeing.
+          Keep responses empathetic, short (2-3 sentences), and suggest one small helpful action.
+        `,
       },
       ...historyForLLM,
       { role: "user", content: input },
     ];
 
-    const llm = await chatWithLLM(llmMessages);
-    const { text: reply, chips } = llm
-      ? { text: llm, chips: ["Start Meditation", "Open Journal", "Set a Goal"] }
-      : ruleReply(input);
-
-    addMsg("bot", reply);
-    if (chips?.length) addChips(chips);
+    /* ---------- Get LLM reply ---------- */
+    const replyText = await chatWithLLM(llmMessages);
+    addMsg(
+      "bot",
+      replyText ||
+        "Thanks for sharing 🌿. I’m here to support mental wellbeing. Try a quick breathing exercise, journaling, or setting a small goal."
+    );
+    addChips(["Start Meditation", "Open Journal", "Set a Goal"]);
     setTyping(false);
     scrollToBottom();
   };
 
-  /* ---------- Quick actions ---------- */
+  /* ---------- Quick action chips ---------- */
   const onTapChip = (chip) => {
     const map = {
       "Start Meditation": () => navigation.navigate("Meditation"),
@@ -236,7 +204,7 @@ export default function ChatbotScreen({ navigation }) {
       {/* Header */}
       <View style={styles.headerCard}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Image source={require("../assets/robo4.jpg")} style={styles.avatar} resizeMode="cover" />
+          <Image source={require("../assets/robo4.jpg")} style={styles.avatar} />
           <Text style={styles.headerTitle}>Healio AI Chatbot</Text>
         </View>
       </View>
@@ -269,23 +237,10 @@ export default function ChatbotScreen({ navigation }) {
             ) : (
               <View
                 key={it.id}
-                style={[
-                  styles.bubbleRow,
-                  it.role === "user" ? { justifyContent: "flex-end" } : null,
-                ]}
+                style={[styles.bubbleRow, it.role === "user" ? { justifyContent: "flex-end" } : null]}
               >
-                <View
-                  style={[
-                    styles.bubble,
-                    it.role === "user" ? styles.userBubble : styles.botBubble,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.bubbleText,
-                      it.role === "user" ? styles.userText : styles.botText,
-                    ]}
-                  >
+                <View style={[styles.bubble, it.role === "user" ? styles.userBubble : styles.botBubble]}>
+                  <Text style={[styles.bubbleText, it.role === "user" ? styles.userText : styles.botText]}>
                     {it.text}
                   </Text>
                 </View>
@@ -304,12 +259,7 @@ export default function ChatbotScreen({ navigation }) {
         </ScrollView>
 
         {/* Input Bar */}
-        <View
-          style={[
-            styles.inputBarContainer,
-            { paddingBottom: insets.bottom + (Platform.OS === "web" ? 80 : 70) },
-          ]}
-        >
+        <View style={[styles.inputBarContainer, { paddingBottom: insets.bottom + 70 }]}>
           <View style={styles.inputBar}>
             <TouchableOpacity style={styles.addBtn} activeOpacity={0.6}>
               <Text style={{ fontSize: 18 }}>＋</Text>
@@ -320,10 +270,7 @@ export default function ChatbotScreen({ navigation }) {
               onChangeText={setText}
               placeholder="Type a message…"
               placeholderTextColor="#9CA3AF"
-              style={[
-                styles.input,
-                { height: Math.min(Math.max(INPUT_MIN, inputHeight), INPUT_MAX) },
-              ]}
+              style={[styles.input, { height: Math.min(Math.max(INPUT_MIN, inputHeight), INPUT_MAX) }]}
               multiline
               numberOfLines={1}
               maxLength={2000}
@@ -337,7 +284,6 @@ export default function ChatbotScreen({ navigation }) {
               style={[styles.sendBtn, { opacity: text.trim() ? 1 : 0.5 }]}
               onPress={handleSend}
               disabled={!text.trim()}
-              activeOpacity={0.8}
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>➤</Text>
             </TouchableOpacity>
@@ -406,7 +352,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#F6F7FB",
+    backgroundColor: BG,
     paddingHorizontal: 12,
     paddingTop: 6,
     borderTopWidth: 1,
@@ -452,17 +398,6 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     marginLeft: 4,
   },
-  typingWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingLeft: 8,
-    paddingTop: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#9CA3AF",
-    marginHorizontal: 2,
-  },
+  typingWrap: { flexDirection: "row", alignItems: "center", paddingLeft: 8, paddingTop: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#9CA3AF", marginHorizontal: 2 },
 });

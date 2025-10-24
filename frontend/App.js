@@ -8,7 +8,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import api from "./config/api";
-import  Toast from 'react-native-toast-message';
+import Toast from 'react-native-toast-message';
 // Context providers
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import { GoalsProvider } from "./context/GoalsContext";
@@ -37,7 +37,7 @@ import ProgressScreen from "./screens/ProgressScreen";
 import RewardsScreen from "./screens/RewardsScreen";
 import JournalScreen from "./screens/JournalScreen";
 import MusicScreen from "./screens/MusicScreen";
-import ActivityDashboardScreen from "./screens/ActivityDashboardScreen";
+//import ActivityDashboardScreen from "./screens/ActivityDashboardScreen";
 
 // ---- Profile-related screens ----
 import PersonalInfoScreen from "./screens/PersonalInfoScreen";
@@ -53,7 +53,7 @@ import HelpCenterScreen from "./screens/HelpCenterScreen";
 import KnowledgeHubScreen from "./screens/KnowledgeHubScreen";
 import MessagesScreen from "./screens/MessagesScreen";
 import LogoutScreen from "./screens/LogoutScreen";
-
+//import ActivityDetailsScreen from "./screens/ActivityDetailsScreen";
 // ---- Navigators ----
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,12 +61,12 @@ const Tab = createBottomTabNavigator();
 /* ---------- Helper: add the Healio Header to screens ---------- */
 const withHeader =
   (Component, unreadCount = 3) =>
-  (props) => (
-    <View style={{ flex: 1 }}>
-      <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
-      <Component {...props} />
-    </View>
-  );
+    (props) => (
+      <View style={{ flex: 1 }}>
+        <HeaderBar navigation={props.navigation} unreadCount={unreadCount} />
+        <Component {...props} />
+      </View>
+    );
 
 /* ------------------- Profile stack (inside Profile tab) ------------------- */
 function ProfileStack() {
@@ -91,7 +91,11 @@ function ProfileStack() {
       <Stack.Screen name="HelpCenter" component={withHeader(HelpCenterScreen)} />
       <Stack.Screen name="KnowledgeHub" component={withHeader(KnowledgeHubScreen)} />
       <Stack.Screen name="Messages" component={withHeader(MessagesScreen)} />
-
+      <Stack.Screen
+        name="ActivityDetail"
+        component={ActivityDetailScreen}
+        options={{ headerShown: false }}
+      />
       {/* Account */}
       <Stack.Screen name="Logout" component={withHeader(LogoutScreen)} />
     </Stack.Navigator>
@@ -120,7 +124,7 @@ function AppTabs() {
         <Tab.Screen name="Rewards" component={withHeader(RewardsScreen)} />
         <Tab.Screen name="Music" component={withHeader(MusicScreen)} />
         <Tab.Screen name="Profile" component={ProfileStack} />
-        <Tab.Screen
+      {/*  <Tab.Screen
           name="ActivityDashboard"
           component={withHeader(ActivityDashboardScreen)}
           options={{
@@ -129,7 +133,7 @@ function AppTabs() {
               <Ionicons name="bar-chart-outline" size={size} color={color} />
             ),
           }}
-        />
+        /> */}
       </Tab.Navigator>
     </GoalsProvider>
   );

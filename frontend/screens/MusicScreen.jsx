@@ -7,62 +7,72 @@ import {
   TouchableOpacity,
   FlatList,
   Animated,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 
-/* ───────────────  MUSIC DATA ─────────────── */
+/* ───────────────  FAST, MOBILE-FRIENDLY MUSIC LINKS ─────────────── */
 const MUSIC_LIST = [
   {
     id: "1",
     title: "Calm Ocean Waves 🌊",
-    uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    uri: "https://cdn.pixabay.com/download/audio/2022/03/15/audio_9b1b02a1f5.mp3?filename=ocean-waves.mp3",
   },
   {
     id: "2",
     title: "Peaceful Piano 🎹",
-    uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    uri: "https://cdn.pixabay.com/download/audio/2022/02/23/audio_4c43a46dd6.mp3?filename=relaxing-piano.mp3",
   },
   {
     id: "3",
     title: "Forest Ambience 🌲",
-    uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    uri: "https://cdn.pixabay.com/download/audio/2021/09/25/audio_forest.mp3?filename=forest-birds.mp3",
   },
   {
     id: "4",
     title: "Focus Beats 🎧",
-    uri: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+    uri: "https://cdn.pixabay.com/download/audio/2022/01/30/audio_1dbd9b8f5f.mp3?filename=focus-beats.mp3",
   },
 ];
 
-/* ───────────────  MAIN SCREEN ─────────────── */
 export default function MusicScreen() {
   const [playingId, setPlayingId] = useState(null);
   const soundRef = useRef(new Audio.Sound());
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // stop any sound on unmount
+  /* ✅ Configure audio mode for iOS & Android */
   useEffect(() => {
-    return () => {
-      stopMusic();
-    };
+    (async () => {
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+    })();
+
+    return () => stopMusic();
   }, []);
 
+  /* 🎵 Play Music */
   const playMusic = async (music) => {
     try {
       if (playingId === music.id) {
         await stopMusic();
         return;
       }
-      await stopMusic();
 
-      const { sound } = await Audio.Sound.createAsync({ uri: music.uri });
+      await stopMusic();
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: music.uri },
+        { shouldPlay: true }
+      );
       soundRef.current = sound;
-      await sound.playAsync();
       setPlayingId(music.id);
 
-      // gentle pulsing animation while playing
       Animated.loop(
         Animated.sequence([
           Animated.timing(scaleAnim, {
@@ -79,9 +89,11 @@ export default function MusicScreen() {
       ).start();
     } catch (err) {
       console.error("🎵 Play error:", err);
+      Alert.alert("Playback Error", "Could not load the audio. Please try again.");
     }
   };
 
+  /* ⏹ Stop Music */
   const stopMusic = async () => {
     try {
       await soundRef.current.stopAsync();
@@ -132,36 +144,19 @@ export default function MusicScreen() {
   );
 }
 
-/* ───────────────  STYLES ─────────────── */
+/* ---------- STYLES ---------- */
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  bg: {
-    flex: 1,
-  },
+  safe: { flex: 1, backgroundColor: "#F8FAFC" },
+  bg: { flex: 1 },
   headerWrap: {
     alignItems: "center",
     marginTop: 20,
     marginBottom: 20,
     paddingHorizontal: 20,
   },
-  emoji: {
-    fontSize: 42,
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#1E293B",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center",
-  },
+  emoji: { fontSize: 42, marginBottom: 6 },
+  title: { fontSize: 22, fontWeight: "800", color: "#1E293B" },
+  subtitle: { fontSize: 14, color: "#64748B", marginTop: 4, textAlign: "center" },
   trackCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,16 +177,7 @@ const styles = StyleSheet.create({
     shadowColor: "#10B981",
     shadowOpacity: 0.2,
   },
-  trackTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  activeText: {
-    color: "#065F46",
-  },
-  trackSubtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
+  trackTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  activeText: { color: "#065F46" },
+  trackSubtitle: { fontSize: 13, color: "#6B7280" },
 });
