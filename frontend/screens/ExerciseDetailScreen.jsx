@@ -22,12 +22,12 @@ import { showSyncedToast } from "../utils/toastUtils";
 import { useActivity } from "../context/ActivityContext";
 
 export default function ExerciseDetailScreen({ route, navigation }) {
-  // ✅ Handle missing params safely
   const exercise = route?.params?.exercise || { name: "Unknown Exercise" };
 
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
   const [sessions, setSessions] = useState([]);
+  const [countdown, setCountdown] = useState(null); // Countdown state
   const { triggerRefresh } = useActivity();
   const scale = useRef(new Animated.Value(1)).current;
   const animationRef = useRef(null);
@@ -61,6 +61,22 @@ export default function ExerciseDetailScreen({ route, navigation }) {
     if (running) t = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [running]);
+
+  /* ---------- Countdown before start ---------- */
+  const handleStart = () => setCountdown(3);
+
+  useEffect(() => {
+    let countdownInterval;
+    if (countdown !== null) {
+      if (countdown > 0) {
+        countdownInterval = setTimeout(() => setCountdown(countdown - 1), 1000);
+      } else {
+        setCountdown(null);
+        setRunning(true);
+      }
+    }
+    return () => clearTimeout(countdownInterval);
+  }, [countdown]);
 
   /* ---------- Animation ---------- */
   useEffect(() => {
@@ -106,7 +122,6 @@ export default function ExerciseDetailScreen({ route, navigation }) {
       await AsyncStorage.setItem("exerciseSessions", JSON.stringify(updated));
       setSessions(updated);
 
-      // ✅ Log outgoing payload clearly
       console.log("📤 Sending activity →", {
         userId,
         type: "Exercise",
@@ -116,7 +131,6 @@ export default function ExerciseDetailScreen({ route, navigation }) {
         time: session.time,
       });
 
-      // ✅ Send to backend
       const res = await api.post("/api/activities/add", {
         userId,
         type: "Exercise",
@@ -170,19 +184,22 @@ export default function ExerciseDetailScreen({ route, navigation }) {
           )}
         </Animated.View>
 
-        <Text style={styles.timer}>{formatTime(seconds)}</Text>
+        {/* Timer / Countdown */}
+        <Text style={styles.timer}>
+          {countdown !== null ? countdown : formatTime(seconds)}
+        </Text>
 
         {/* Controls */}
         <View style={styles.btnRow}>
-          {!running ? (
+          {!running && countdown === null ? (
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: "#10B981" }]}
-              onPress={() => setRunning(true)}
+              onPress={handleStart}
             >
               <Ionicons name="play" size={22} color="#fff" />
               <Text style={styles.btnText}>Start</Text>
             </TouchableOpacity>
-          ) : (
+          ) : running ? (
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: "#F59E0B" }]}
               onPress={() => setRunning(false)}
@@ -190,6 +207,10 @@ export default function ExerciseDetailScreen({ route, navigation }) {
               <Ionicons name="pause" size={22} color="#fff" />
               <Text style={styles.btnText}>Pause</Text>
             </TouchableOpacity>
+          ) : (
+            <View style={[styles.btn, { backgroundColor: "#6B7280" }]}>
+              <Text style={styles.btnText}>Get Ready...</Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -254,6 +275,7 @@ const styles = StyleSheet.create({
   btn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingHorizontal: 22,
     paddingVertical: 12,
