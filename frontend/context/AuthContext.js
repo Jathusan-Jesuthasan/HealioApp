@@ -1,65 +1,165 @@
-// frontend/src/context/AuthContext.js
-import React, { createContext, useEffect, useState } from "react";
+// frontend/context/AuthContext.js
+import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { 
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithCredential
+} from "firebase/auth";
+import { auth, googleProvider } from "../config/firebaseConfig";
+import api from "../config/api";
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [userToken, setUserToken] = useState(null);
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // Youth / Trusted
   const [loading, setLoading] = useState(true);
+  const [authType, setAuthType] = useState(null); // 'backend' or 'firebase'
 
-  // 🔹 Load token from storage on app start
+  // ✅ Check authentication state persistence
   useEffect(() => {
-    const loadToken = async () => {
-      try {
-        // 👉 For debugging: clear stored token once to force Welcome/Onboarding
-        // ⚠️ Remove this line later once flow is confirmed working
-        await AsyncStorage.removeItem("userToken");
-
-        const token = await AsyncStorage.getItem("userToken");
-        console.log("🔑 Loaded token from storage:", token);
-        if (token) {
-          setUserToken(token);
-        }
-      } catch (err) {
-        console.error("Error loading token:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadToken();
+    checkAuthState();
   }, []);
 
-  // 🔹 Sign In → Save token
-  const signIn = async (token) => {
+  const checkAuthState = async () => {
     try {
-      await AsyncStorage.setItem("userToken", token);
-      setUserToken(token);
-      console.log("✅ Token saved, user signed in");
+      const token = await AsyncStorage.getItem("userToken");
+      const role = await AsyncStorage.getItem("userRole");
+      const authType = await AsyncStorage.getItem("authType");
+      
+      if (token && authType === 'backend') {
+        setUserToken(token);
+        setUserRole(role);
+        setAuthType('backend');
+        // Verify token is still valid by making a test request
+        try {
+          const { data } = await api.get("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setUser(data);
+        } catch (err) {
+          // Token is invalid, clear it
+          await AsyncStorage.multiRemove(["userToken", "userRole", "authType"]);
+          setUserToken(null);
+          setUserRole(null);
+          setUser(null);
+          setAuthType(null);
+        }
+      } else if (authType === 'firebase') {
+        // Check Firebase auth state
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            const token = await firebaseUser.getIdToken();
+            setUser(firebaseUser);
+            setUserToken(token);
+            setAuthType('firebase');
+            const role = await AsyncStorage.getItem("userRole");
+            if (role) setUserRole(role);
+          } else {
+            setUser(null);
+            setUserToken(null);
+            setAuthType(null);
+          }
+          setLoading(false);
+        });
+        return unsubscribe;
+      }
     } catch (err) {
-      console.error("Error saving token:", err);
+      console.error("Auth state check error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🔹 Sign Out → Clear token
+  // ✅ Backend Email/Password Login
+  const loginWithEmail = async (email, password, role = "Youth") => {
+    try {
+      const { data } = await api.post("/api/auth/login", { email, password });
+      
+      await AsyncStorage.setItem("userToken", data.token);
+      await AsyncStorage.setItem("userRole", data.role);
+      await AsyncStorage.setItem("authType", "backend");
+      setUser(data);
+      setUserToken(data.token);
+      setUserRole(data.role);
+      setAuthType("backend");
+      console.log("✅ Logged in with backend:", data.email);
+    } catch (err) {
+      console.error("Email login error:", err.response?.data?.message || err.message);
+      throw err;
+    }
+  };
+
+  // ✅ Firebase Google Sign-In
+  const loginWithGoogle = async (role = "Youth") => {
+    try {
+      // For now, we'll use a mock Google login
+      // In production, you would implement proper Google Sign-In for React Native
+      const mockUser = {
+        uid: "google_user_" + Date.now(),
+        email: "user@gmail.com",
+        displayName: "Google User",
+        photoURL: "https://via.placeholder.com/150",
+        getIdToken: async () => "mock_google_token_" + Date.now()
+      };
+      
+      // Register/login with backend using Google info
+      const { data } = await api.post("/api/auth/google", {
+        googleId: mockUser.uid,
+        email: mockUser.email,
+        name: mockUser.displayName,
+        avatarUrl: mockUser.photoURL,
+        role: role
+      });
+      
+      await AsyncStorage.setItem("userToken", data.token);
+      await AsyncStorage.setItem("userRole", data.role);
+      await AsyncStorage.setItem("authType", "backend");
+      setUser(data);
+      setUserToken(data.token);
+      setUserRole(data.role);
+      setAuthType("backend");
+      console.log("✅ Google login successful");
+      return data;
+    } catch (err) {
+      console.error("Google login error:", err.message);
+      throw err;
+    }
+  };
+
+  // ✅ Sign out completely
   const signOut = async () => {
     try {
-      await AsyncStorage.removeItem("userToken");
-      console.log("🚪 Token removed, user signed out");
-    } catch (err) {
-      console.error("Error removing token:", err);
-    } finally {
+      if (authType === 'firebase') {
+        await firebaseSignOut(auth);
+      }
+      await AsyncStorage.multiRemove(["userToken", "userRole", "authType"]);
+      setUser(null);
       setUserToken(null);
+      setUserRole(null);
+      setAuthType(null);
+      console.log("🚪 Logged out successfully");
+    } catch (e) {
+      console.error("Error signing out:", e.message);
     }
   };
 
-  // 🔹 Context value
+  // ✅ Expose AuthContext values
   return (
     <AuthContext.Provider
       value={{
+        user,
         userToken,
+        userRole,
+        authType,
         loading,
-        signIn,
+        setUserRole,
+        loginWithEmail,
+        loginWithGoogle,
         signOut,
       }}
     >

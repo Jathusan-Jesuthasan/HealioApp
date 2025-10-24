@@ -1,5 +1,5 @@
 // components/HeaderBar.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useContext } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AuthContext } from "../context/AuthContext";
 
 const COLORS = {
   base: "#F5F7FA",
@@ -21,6 +22,7 @@ const COLORS = {
 };
 
 export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
+  const { user, userRole, setUserRole } = useContext(AuthContext);
   const slide = useRef(new Animated.Value(-24)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const bellBounce = useRef(new Animated.Value(0)).current;
@@ -60,6 +62,24 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
     if (onBack) return onBack();
     if (navigation?.canGoBack?.()) return navigation.goBack();
     navigation?.navigate?.("Home");
+  };
+
+  const handleProfilePress = () => {
+    // Try to navigate to Profile, fallback to Home if not available
+    try {
+      navigation?.navigate?.("Profile");
+    } catch (error) {
+      console.warn("Profile navigation failed, falling back to Home:", error);
+      navigation?.navigate?.("Home");
+    }
+  };
+
+  const handleNotificationPress = () => {
+    if (userRole === "Youth") {
+      navigation?.navigate?.("Chat");
+    } else {
+      navigation?.navigate?.("Notifications");
+    }
   };
 
   return (
@@ -106,20 +126,39 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
           />
         </View>
 
-        {/* Right: notifications */}
+        {/* Right: notifications and profile */}
         <View style={styles.right}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => navigation?.navigate?.("Notifications")}
+            onPress={handleNotificationPress}
+            style={styles.notificationBtn}
           >
             <Animated.View style={{ transform: [{ scale: bellScale }] }}>
-              <Feather name="bell" size={26} color={COLORS.blue} />
+              <Ionicons 
+                name={userRole === "Youth" ? "chatbubble" : "notifications"} 
+                size={26} 
+                color={COLORS.blue} 
+              />
             </Animated.View>
 
             {unreadCount > 0 && (
               <Animated.View style={[styles.badge, { transform: [{ scale: badgeScale }] }]}>
                 <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
               </Animated.View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleProfilePress}
+            style={styles.profileBtn}
+          >
+            {user?.photoURL ? (
+              <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Ionicons name="person" size={20} color={COLORS.blue} />
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -160,7 +199,35 @@ const styles = StyleSheet.create({
   },
   left: { flexDirection: "row", alignItems: "center", gap: 12 },
   logo: { width: 120, height: 40 },
-  right: { padding: 6 },
+  right: { 
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  notificationBtn: {
+    position: "relative",
+    padding: 8,
+  },
+  profileBtn: {
+    padding: 4,
+  },
+  profileImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: COLORS.blue,
+  },
+  profilePlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: COLORS.blue,
+  },
   backBtn: {
     padding: 8,
     borderRadius: 20,
