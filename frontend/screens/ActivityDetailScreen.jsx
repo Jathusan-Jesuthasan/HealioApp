@@ -14,7 +14,7 @@ import {
 import Header from "../components/HeaderBar.jsx";
 //import Footer from "../components/BottomBar.jsx";
 import { logActivity } from "../utils/logActivity.jsx";
-
+//import { View, Text, StyleSheet } from "react-native"
 export default function ActivityDetailScreen({ route, navigation }) {
   const { activity } = route.params; // "Meditation" | "Journaling" | "Exercise" | "Music" | ...
   const [started, setStarted] = useState(false);
@@ -186,8 +186,38 @@ export default function ActivityDetailScreen({ route, navigation }) {
     </SafeAreaView>
   );
 }
+/*
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>📋 Activity Details</Text>
+      <Text style={styles.text}>
+        This page will show your detailed logs and individual activity insights.
+      </Text>
+    </View>
+  );
+}*/
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1E3A8A",
+    marginBottom: 10,
+  },
+  text: {
+    fontSize: 16,
+    color: "#475569",
+    textAlign: "center",
+  },
+});
+const styles1 = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   content: {
     flexGrow: 1,

@@ -91,12 +91,7 @@ export default function ActivityScreen({ navigation }) {
       title: "Set Goals",
       go: () => navigation.navigate("GoalSetup"),
     },
-    {
-      key: "ActivityDashboard",
-      icon: "📊",
-      title: "Activity Dashboard",
-      go: () => navigation.navigate("ActivityDashboard"),
-    },
+    
     {
       key: "Progress",
       icon: "📊",
