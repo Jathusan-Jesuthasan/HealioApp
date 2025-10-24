@@ -1,5 +1,6 @@
 // controllers/dashboardController.js
 import MoodLog from "../models/MoodLog.js";
+import AIRiskResult from "../models/AIRiskResult.js";
 
 /**
  * Convert mood label to numeric scale (1–5).
@@ -51,6 +52,9 @@ export const getDashboard = async (req, res) => {
         progressMilestone: 0,
         weeklyMoods: Array(7).fill(0),
         aiRiskDetected: false,
+        riskPatterns: [],
+        totalEntries: 0,
+        moodLogs: [],
       });
     }
 
@@ -73,18 +77,53 @@ export const getDashboard = async (req, res) => {
       weeklyMoods[idx] = list.reduce((a, b) => a + b, 0) / list.length;
     });
 
-    // ---- Simple AI Risk Detection ----
-    // Rule: 3+ consecutive days with avg <3 = risk
-    let risk = false;
-    let streak = 0;
-    weeklyMoods.forEach((s) => {
-      if (s > 0 && s < 3) {
-        streak++;
-        if (streak >= 3) risk = true;
-      } else {
-        streak = 0;
-      }
-    });
+    // ---- Real AI Risk Detection from AIRiskResult collection ----
+    // Check for recent high-risk AI analyses
+    const recentRiskResults = await AIRiskResult.find({
+      user: userId,
+      date: { $gte: since },
+    }).sort({ date: -1 }).limit(10);
+
+    // Check if any recent results have high risk levels
+    const highRiskLevels = ["SERIOUS", "STRESS", "ANGER", "ANXIETY"];
+    const hasHighRisk = recentRiskResults.some(result => 
+      highRiskLevels.includes(result.riskLevel?.toUpperCase())
+    );
+
+    // Extract risk patterns from AI results
+    const riskPatterns = [];
+    if (hasHighRisk) {
+      const riskCounts = {};
+      recentRiskResults.forEach(result => {
+        const level = result.riskLevel?.toUpperCase();
+        if (highRiskLevels.includes(level)) {
+          riskCounts[level] = (riskCounts[level] || 0) + 1;
+        }
+      });
+
+      // Convert to patterns array
+      Object.entries(riskCounts).forEach(([level, count]) => {
+        riskPatterns.push({
+          type: level,
+          count: count,
+          severity: level === 'SERIOUS' ? 'high' : 'moderate'
+        });
+      });
+    }
+
+    // Fallback: Simple rule-based detection if no AI results
+    let risk = hasHighRisk;
+    if (!risk && weeklyMoods.length > 0) {
+      let streak = 0;
+      weeklyMoods.forEach((s) => {
+        if (s > 0 && s < 3) {
+          streak++;
+          if (streak >= 3) risk = true;
+        } else {
+          streak = 0;
+        }
+      });
+    }
 
     // ---- Progress milestone ----
     const positives = logs.filter((l) => l.mood === "Happy").length;
@@ -98,6 +137,9 @@ export const getDashboard = async (req, res) => {
       progressMilestone,
       weeklyMoods: weeklyMoods.map((s) => Math.round(s)), // rounded 1–5
       aiRiskDetected: risk,
+      riskPatterns: riskPatterns, // NEW: Include detected patterns
+      totalEntries: logs.length, // Total mood log entries in the range
+      moodLogs: logs, // Include the actual logs for detailed analytics
     });
   } catch (err) {
     console.error("Dashboard error:", err);

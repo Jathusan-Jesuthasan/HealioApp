@@ -8,6 +8,7 @@ dotenv.config({ path: "./.env" }); // ✅ Must be the first line to ensure env v
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
+import { scheduleDailySummary } from "./utils/dailySummary.js";
 
 // ----------------- Routes -----------------
 import authRoutes from "./routes/authRoutes.js";
@@ -51,6 +52,9 @@ app.use(
   })
 );
 
+// ----------------- Serve Static Files (for logo in emails) -----------------
+app.use('/public', express.static('public'));
+
 // ----------------- Health Check Routes -----------------
 app.get("/", (req, res) => res.send("✅ Healio API is running"));
 app.get("/health", (req, res) =>
@@ -80,6 +84,10 @@ app.use((err, req, res, next) => {
 
 // ----------------- Start Server -----------------
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, "0.0.0.0", () =>
-  console.log(`🚀 Healio API Server running on: http://localhost:${PORT}`)
-);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Healio API Server running on: http://localhost:${PORT}`);
+  
+  // Start daily summary scheduler
+  scheduleDailySummary();
+  console.log('⏰ Daily summary scheduler is active');
+});

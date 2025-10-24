@@ -21,6 +21,7 @@ import { Colors } from '../utils/Colors';
 import { getDashboard } from '../services/analytics';
 import MotivationCard from '../components/MotivationCard';
 import MoodCalendar from '../components/MoodCalendar';
+import BMICalculator from '../components/BMICalculator';
 
 /* -------------------------------- Risk Levels -------------------------------- */
 const getRiskLevel = (score) => {
@@ -122,7 +123,7 @@ export default function DashboardScreen({ navigation }) {
     }).start();
 
     return () => pulse.stop();
-  }, [mindBalanceScore]);
+  }, [mindBalanceScore, pulseAnim, slideAnim, barAnim]);
 
   /* ---------------------------- Helper Functions ---------------------------- */
   const getCurrentMilestone = () =>
@@ -130,9 +131,9 @@ export default function DashboardScreen({ navigation }) {
     WELLNESS_MILESTONES[0];
 
   const getRiskPatternsSummary = () => {
-    if (!riskPatterns.length) return 'No concerning patterns detected';
-  const patterns = (riskPatterns || []).slice(0, 2);
-    return patterns.map((pattern) => pattern.type).join(', ');
+    if (!riskPatterns || riskPatterns.length === 0) return 'No concerning patterns detected';
+    const patterns = (riskPatterns || []).slice(0, 2);
+    return patterns.map((p) => p.type).join(', ');
   };
 
   const getTrustedPersonStatusText = () => {
@@ -143,6 +144,8 @@ export default function DashboardScreen({ navigation }) {
     };
     return statusMap[trustedPersonStatus] || statusMap.inactive;
   };
+
+  const last7Labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   /* -------------------------------- Load Data -------------------------------- */
   const load = useCallback(async () => {
@@ -193,13 +196,26 @@ export default function DashboardScreen({ navigation }) {
     <Animated.View
       style={[
         styles.riskIndicator,
-        { backgroundColor: risk.color, transform: [{ scale: pulseAnim }] },
+        { 
+          backgroundColor: risk.color, 
+          transform: [{ scale: pulseAnim }],
+          borderLeftWidth: 6,
+          borderLeftColor: '#fff',
+        },
       ]}
     >
-      <Text style={styles.riskIndicatorText}>
-        {risk.icon} {risk.label}
-      </Text>
-      <Text style={styles.riskIndicatorSubtext}>{risk.description}</Text>
+      <View style={styles.riskContent}>
+        <Text style={styles.riskIndicatorText}>
+          {risk.icon} {risk.label}
+        </Text>
+        <Text style={styles.riskIndicatorSubtext}>{risk.description}</Text>
+        {mindBalanceScore >= 70 && (
+          <View style={styles.positiveBadge}>
+            <Ionicons name="sparkles" size={14} color="#fff" />
+            <Text style={styles.positiveText}>You're doing great!</Text>
+          </View>
+        )}
+      </View>
     </Animated.View>
   );
 
@@ -207,7 +223,55 @@ export default function DashboardScreen({ navigation }) {
     <View style={styles.streakContainer}>
       <Ionicons name="flame" size={22} color="#F59E0B" />
       <Text style={styles.streakText}>{wellnessStreak} day streak</Text>
-      {wellnessStreak > 7 && <Text style={styles.streakSubtext}>Keep going! 🔥</Text>}
+      {wellnessStreak > 7 && (
+        <View style={styles.fireBadge}>
+          <Text style={styles.streakSubtext}>Keep going! 🔥</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderQuickActions = () => (
+    <View style={styles.quickActions}>
+      <TouchableOpacity 
+        style={styles.quickAction}
+        onPress={() => navigation.navigate('MoodLogger')}
+      >
+        <View style={[styles.actionIcon, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
+          <Ionicons name="happy" size={20} color="#8B5CF6" />
+        </View>
+        <Text style={styles.actionText}>Log Mood</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.quickAction}
+        onPress={() => navigation.navigate('Breathing')}
+      >
+        <View style={[styles.actionIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+          <Ionicons name="water" size={20} color="#3B82F6" />
+        </View>
+        <Text style={styles.actionText}>Breathe</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.quickAction}
+        onPress={() => navigation.navigate('Journal')}
+      >
+        <View style={[styles.actionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+          <Ionicons name="book" size={20} color="#10B981" />
+        </View>
+        <Text style={styles.actionText}>Journal</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.quickAction}
+        onPress={() => navigation.navigate('Resources')}
+      >
+        <View style={[styles.actionIcon, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+          <Ionicons name="library" size={20} color="#F59E0B" />
+        </View>
+        <Text style={styles.actionText}>Resources</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -242,6 +306,9 @@ export default function DashboardScreen({ navigation }) {
       ) : (
         <>
           {renderRiskIndicator()}
+
+          {/* Quick Actions */}
+          {renderQuickActions()}
 
           <Animated.View style={{ transform: [{ translateY: cardSlide }] }}>
             {/* Mind Balance Score */}
@@ -279,8 +346,14 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </Card>
 
+            {/* Mood Calendar */}
             <MoodCalendar />
+
+            {/* Motivation Card */}
             <MotivationCard score={mindBalanceScore} moodData={weeklyMoods} showRefresh />
+
+            {/* BMI Calculator */}
+            <BMICalculator />
 
             {/* AI Risk Detection */}
             <Card style={[styles.shadowCard, styles.riskCard]}>
@@ -290,11 +363,19 @@ export default function DashboardScreen({ navigation }) {
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.title}>🤖 AI Risk Intelligence</Text>
-                  <Ionicons
-                    name="analytics"
-                    size={20}
-                    color={aiRiskDetected ? Colors.danger : Colors.stable}
-                  />
+                  <View style={styles.statusBadge}>
+                    <Ionicons
+                      name="analytics"
+                      size={16}
+                      color={aiRiskDetected ? Colors.danger : Colors.stable}
+                    />
+                    <Text style={[
+                      styles.statusBadgeText, 
+                      { color: aiRiskDetected ? Colors.danger : Colors.stable }
+                    ]}>
+                      {aiRiskDetected ? 'Alert' : 'Clear'}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.riskStatus}>
@@ -355,7 +436,7 @@ export default function DashboardScreen({ navigation }) {
 
                 <LineChart
                   data={{
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    labels: last7Labels,
                     datasets: [
                       { data: weeklyMoods.length ? weeklyMoods : [3, 3, 3, 3, 3, 3, 3] },
                     ],
@@ -439,7 +520,7 @@ export default function DashboardScreen({ navigation }) {
               </TouchableOpacity>
             </Card>
 
-            {/* AI Insights */}
+            {/* AI Insights History */}
             <Card style={styles.shadowCard}>
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -468,30 +549,36 @@ export default function DashboardScreen({ navigation }) {
               </TouchableOpacity>
             </Card>
 
+            {/* Wellness Tips */}
+            <Card style={[styles.shadowCard, styles.tipsCard]}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.title}>💡 Daily Wellness Tips</Text>
+                <Ionicons name="bulb" size={20} color="#F59E0B" />
+              </View>
+              
+              <View style={styles.tipsContainer}>
+                <View style={styles.tipItem}>
+                  <Ionicons name="water" size={16} color="#3B82F6" />
+                  <Text style={styles.tipText}>Stay hydrated - drink 8 glasses today</Text>
+                </View>
+                <View style={styles.tipItem}>
+                  <Ionicons name="walk" size={16} color="#10B981" />
+                  <Text style={styles.tipText}>Take a 10-minute walk outside</Text>
+                </View>
+                <View style={styles.tipItem}>
+                  <Ionicons name="moon" size={16} color="#8B5CF6" />
+                  <Text style={styles.tipText}>Aim for 8 hours of sleep tonight</Text>
+                </View>
+              </View>
+            </Card>
+
             {/* Banner Image */}
-            
             <Image
               source={require('../assets/dashboard.png')}
-              style={{
-                width: '75%',
-                height: 170,
-                borderRadius: 16,
-                marginTop: 7,
-                marginBottom: 6,
-                alignSelf: 'center',
-              }}
+              style={styles.bannerImage}
               resizeMode="cover"
             />
-            <Text
-              style={{
-                textAlign: 'center',
-                fontSize: 12,
-                color: Colors.secondary,
-                fontWeight: '700',
-                marginBottom: 70,
-                letterSpacing: 1.1,
-              }}
-            >
+            <Text style={styles.bannerText}>
                - Healio walks with you -
             </Text>
           </Animated.View>
@@ -505,96 +592,379 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background, // #F5F7FA
+    backgroundColor: Colors.background,
     padding: 16,
   },
-  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
-  loading: { marginTop: 12, color: Colors.textSecondary, fontSize: 16 },
+  center: { 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 48 
+  },
+  loading: { 
+    marginTop: 12, 
+    color: Colors.textSecondary, 
+    fontSize: 16 
+  },
   riskIndicator: {
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  riskIndicatorText: { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  riskIndicatorSubtext: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
-  scoreCard: { borderLeftWidth: 4, borderLeftColor: Colors.secondary, backgroundColor: Colors.card },
+  riskContent: {
+    alignItems: 'center',
+  },
+  riskIndicatorText: { 
+    fontSize: 22, 
+    fontWeight: '800', 
+    color: '#fff', 
+    marginBottom: 6,
+    textAlign: 'center'
+  },
+  riskIndicatorSubtext: { 
+    fontSize: 14, 
+    color: 'rgba(255,255,255,0.9)', 
+    fontWeight: '500',
+    textAlign: 'center'
+  },
+  positiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  positiveText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  quickAction: {
+    alignItems: 'center',
+    flex: 1,
+    padding: 8,
+  },
+  actionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  actionText: {
+    fontSize: 11,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  scoreCard: { 
+    borderLeftWidth: 4, 
+    borderLeftColor: Colors.secondary, 
+    backgroundColor: Colors.card 
+  },
   scoreHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  scoreContainer: { alignItems: 'center', marginBottom: 16 },
-  score: { fontSize:42, fontWeight: '800', color: Colors.textPrimary, marginBottom: 12 },
-scoreMeter: { width: '100%', height: 8, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 4, overflow: 'hidden' },
-scoreFill: { height: '100%', borderRadius: 4 },
-streakContainer: {
-flexDirection: 'row',
-alignItems: 'center',
-backgroundColor: 'rgba(245,158,11,0.1)',
-paddingHorizontal: 12,
-paddingVertical: 6,
-borderRadius: 16,
-},
-streakText: { fontSize: 12, fontWeight: '600', color: '#F59E0B', marginLeft: 4 },
-streakSubtext: { fontSize: 10, color: '#F59E0B', marginLeft: 4 },
-milestoneContainer: { marginTop: 8 },
-milestoneTitle: { fontSize: 16, fontWeight: '600', color: Colors.textPrimary, marginBottom: 8 },
-milestoneText: { fontSize: 12, color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
-riskCard: { borderLeftWidth: 4, borderLeftColor: Colors.danger, backgroundColor: Colors.card },
-cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-subtitle: { fontSize: 12, color: Colors.textSecondary },
-riskStatus: { marginBottom: 16 },
-statusIndicator: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 8 },
-statusText: { color: '#fff', fontWeight: '600', fontSize: 12 },
-riskDescription: { fontSize: 14, color: Colors.textPrimary, marginBottom: 4 },
-patternSummary: { fontSize: 12, color: Colors.textSecondary, fontStyle: 'italic' },
-riskFeatures: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-featureItem: { flexDirection: 'row', alignItems: 'center' },
-featureText: { fontSize: 10, color: Colors.textSecondary, marginLeft: 4 },
-chart: { marginVertical: 8, borderRadius: 12 },
-moodInsights: { backgroundColor: 'rgba(74,144,226,0.05)', padding: 12, borderRadius: 8, marginTop: 8 },
-insightTitle: { fontSize: 12, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
-insightText: { fontSize: 11, color: Colors.textSecondary },
-emptyState: { alignItems: 'center', padding: 20 },
-emptyText: { marginTop: 8, color: Colors.textSecondary, fontSize: 12 },
-trustedCard: { borderLeftWidth: 4, borderLeftColor: Colors.accent, backgroundColor: Colors.card },
-trustedStatus: { marginBottom: 16 },
-trustedStatusText: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-trustedDescription: { fontSize: 12, color: Colors.textSecondary, lineHeight: 16 },
-trustedButton: {
-backgroundColor: Colors.secondary,
-paddingVertical: 12,
-paddingHorizontal: 16,
-borderRadius: 8,
-alignItems: 'center',
-},
-trustedButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-reportHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-reportSubtitle: { fontSize: 12, color: Colors.textSecondary },
-reportFeatures: { marginBottom: 16 },
-reportFeature: { fontSize: 12, color: Colors.textSecondary, marginBottom: 2 },
-cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingBottom: 10 },
-title: { fontSize: 18, fontWeight: '600', color: Colors.secondary },
-description: { fontSize: 15, color: Colors.textSecondary, lineHeight: 20, marginBottom: 12 },
-link: { color: Colors.accent, fontWeight: '600', fontSize: 14 },
-retryButton: { backgroundColor: Colors.accent, padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-retryText: { color: '#fff', fontWeight: '600' },
-shadowCard: {
-backgroundColor: Colors.card,
-shadowColor: Colors.primary,
-shadowOpacity: 0.08,
-shadowOffset: { width: 0, height: 4 },
-shadowRadius: 12,
-elevation: 4,
-marginBottom: 16,
-borderRadius: 16,
-padding: 20,
-},
+  scoreContainer: { 
+    alignItems: 'center', 
+    marginBottom: 16 
+  },
+  score: { 
+    fontSize: 42, 
+    fontWeight: '800', 
+    color: Colors.textPrimary, 
+    marginBottom: 12 
+  },
+  scoreMeter: { 
+    width: '100%', 
+    height: 8, 
+    backgroundColor: 'rgba(0,0,0,0.1)', 
+    borderRadius: 4, 
+    overflow: 'hidden' 
+  },
+  scoreFill: { 
+    height: '100%', 
+    borderRadius: 4 
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  streakText: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    color: '#F59E0B', 
+    marginLeft: 4 
+  },
+  fireBadge: {
+    backgroundColor: 'rgba(245,158,11,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 4,
+  },
+  streakSubtext: { 
+    fontSize: 10, 
+    color: '#F59E0B' 
+  },
+  milestoneContainer: { 
+    marginTop: 8 
+  },
+  milestoneTitle: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: Colors.textPrimary, 
+    marginBottom: 8 
+  },
+  milestoneText: { 
+    fontSize: 12, 
+    color: Colors.textSecondary, 
+    marginTop: 4, 
+    textAlign: 'center' 
+  },
+  riskCard: { 
+    borderLeftWidth: 4, 
+    borderLeftColor: Colors.danger, 
+    backgroundColor: Colors.card 
+  },
+  cardHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 12 
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  subtitle: { 
+    fontSize: 12, 
+    color: Colors.textSecondary 
+  },
+  riskStatus: { 
+    marginBottom: 16 
+  },
+  statusIndicator: { 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 12, 
+    alignSelf: 'flex-start', 
+    marginBottom: 8 
+  },
+  statusText: { 
+    color: '#fff', 
+    fontWeight: '600', 
+    fontSize: 12 
+  },
+  riskDescription: { 
+    fontSize: 14, 
+    color: Colors.textPrimary, 
+    marginBottom: 4 
+  },
+  patternSummary: { 
+    fontSize: 12, 
+    color: Colors.textSecondary, 
+    fontStyle: 'italic' 
+  },
+  riskFeatures: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginBottom: 16 
+  },
+  featureItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  featureText: { 
+    fontSize: 10, 
+    color: Colors.textSecondary, 
+    marginLeft: 4 
+  },
+  chart: { 
+    marginVertical: 8, 
+    borderRadius: 12 
+  },
+  moodInsights: { 
+    backgroundColor: 'rgba(74,144,226,0.05)', 
+    padding: 12, 
+    borderRadius: 8, 
+    marginTop: 8 
+  },
+  insightTitle: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    color: Colors.textPrimary, 
+    marginBottom: 2 
+  },
+  insightText: { 
+    fontSize: 11, 
+    color: Colors.textSecondary 
+  },
+  emptyState: { 
+    alignItems: 'center', 
+    padding: 20 
+  },
+  emptyText: { 
+    marginTop: 8, 
+    color: Colors.textSecondary, 
+    fontSize: 12 
+  },
+  trustedCard: { 
+    borderLeftWidth: 4, 
+    borderLeftColor: Colors.accent, 
+    backgroundColor: Colors.card 
+  },
+  trustedStatus: { 
+    marginBottom: 16 
+  },
+  trustedStatusText: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    marginBottom: 8 
+  },
+  trustedDescription: { 
+    fontSize: 12, 
+    color: Colors.textSecondary, 
+    lineHeight: 16 
+  },
+  trustedButton: {
+    backgroundColor: Colors.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  trustedButtonText: { 
+    color: '#fff', 
+    fontWeight: '600', 
+    fontSize: 14 
+  },
+  reportHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 12 
+  },
+  reportSubtitle: { 
+    fontSize: 12, 
+    color: Colors.textSecondary 
+  },
+  reportFeatures: { 
+    marginBottom: 16 
+  },
+  reportFeature: { 
+    fontSize: 12, 
+    color: Colors.textSecondary, 
+    marginBottom: 2 
+  },
+  tipsCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  tipsContainer: {
+    marginTop: 8,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+    borderRadius: 8,
+  },
+  tipText: {
+    fontSize: 12,
+    color: Colors.textPrimary,
+    marginLeft: 8,
+    flex: 1,
+  },
+  cardFooter: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginTop: 8, 
+    paddingBottom: 10 
+  },
+  title: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: Colors.secondary 
+  },
+  description: { 
+    fontSize: 15, 
+    color: Colors.textSecondary, 
+    lineHeight: 20, 
+    marginBottom: 12 
+  },
+  link: { 
+    color: Colors.accent, 
+    fontWeight: '600', 
+    fontSize: 14 
+  },
+  retryButton: { 
+    backgroundColor: Colors.accent, 
+    padding: 12, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    marginTop: 8 
+  },
+  retryText: { 
+    color: '#fff', 
+    fontWeight: '600' 
+  },
+  bannerImage: {
+    width: '75%',
+    height: 170,
+    borderRadius: 16,
+    marginTop: 7,
+    marginBottom: 6,
+    alignSelf: 'center',
+  },
+  bannerText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.secondary,
+    fontWeight: '700',
+    marginBottom: 70,
+    letterSpacing: 1.1,
+  },
+  shadowCard: {
+    backgroundColor: Colors.card,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+  },
 });

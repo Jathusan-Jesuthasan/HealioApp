@@ -7,6 +7,7 @@ import {
   deleteTrustedContact,
   sendRiskAlert,
 } from "../controllers/trustedContactController.js";
+import { triggerDailySummaryNow } from "../utils/dailySummary.js";
 
 // ✅ Import default export (no curly braces)
 import protect from "../middleware/authMiddleware.js";
@@ -30,5 +31,16 @@ router.delete("/:id", deleteTrustedContact);
 
 // POST /api/trusted-contacts/send-alert - Send risk alert to all trusted contacts
 router.post("/send-alert", sendRiskAlert);
+
+// POST /api/trusted-contacts/test-daily-summary - Test daily summary (manual trigger)
+router.post("/test-daily-summary", async (req, res) => {
+  try {
+    await triggerDailySummaryNow();
+    res.json({ success: true, message: 'Daily summary sent successfully!' });
+  } catch (error) {
+    console.error('Error sending daily summary:', error);
+    res.status(500).json({ success: false, message: 'Failed to send daily summary' });
+  }
+});
 
 export default router;

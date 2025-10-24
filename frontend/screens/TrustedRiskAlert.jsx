@@ -41,23 +41,44 @@ export default function TrustedRiskAlert({ navigation }) {
 
   const loadSettings = async () => {
     try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      // Fetch settings from backend
+      const response = await API.get('/api/auth/alert-settings', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data.success) {
+        setAlertSettings(response.data.data);
+        // Also save to local storage as cache
+        await AsyncStorage.setItem('alertSettings', JSON.stringify(response.data.data));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      // Fallback to local storage if backend fails
       const settings = await AsyncStorage.getItem('alertSettings');
       if (settings) {
         setAlertSettings(JSON.parse(settings));
       }
-      const active = await AsyncStorage.getItem('trustedPersonActive');
-      setIsActive(active === 'true');
-    } catch (error) {
-      console.error('Error loading settings:', error);
     }
   };
 
-  const saveSettings = async (newSettings, newActive) => {
+  const saveSettings = async (newSettings) => {
     try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) return;
+
+      // Save to backend
+      await API.put('/api/auth/alert-settings', newSettings, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Also save to local storage
       await AsyncStorage.setItem('alertSettings', JSON.stringify(newSettings));
-      await AsyncStorage.setItem('trustedPersonActive', String(newActive));
     } catch (error) {
       console.error('Error saving settings:', error);
+      Alert.alert('Error', 'Failed to save alert settings');
     }
   };
 
@@ -220,13 +241,12 @@ export default function TrustedRiskAlert({ navigation }) {
 
   const handleToggleActive = async (value) => {
     setIsActive(value);
-    await saveSettings(alertSettings, value);
   };
 
   const handleAlertSettingChange = async (key, value) => {
     const newSettings = { ...alertSettings, [key]: value };
     setAlertSettings(newSettings);
-    await saveSettings(newSettings, isActive);
+    await saveSettings(newSettings);
   };
 
   if (loading && trustedContacts.length === 0) {

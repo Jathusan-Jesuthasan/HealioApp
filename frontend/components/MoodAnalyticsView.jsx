@@ -9,7 +9,6 @@ import {
   Animated,
   useWindowDimensions,
   SafeAreaView,
-  Modal,
   Dimensions
 } from 'react-native';
 import { LineChart, BarChart, PieChart, ProgressChart } from 'react-native-chart-kit';
@@ -44,7 +43,6 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
   const isTablet = screenWidth >= 768;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [range, setRange] = useState(propRange || '7d');
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
 
   // Enhanced responsive design values
@@ -149,11 +147,17 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
   };
 
   const getRiskTrendData = () => {
-    const risks = cleanNumbers(riskHistory.length > 0 ? riskHistory : [2, 3, 1, 2, 1, 3, 2]);
+    // Use wellness scores from riskHistory (wellnessIndex 0-100)
+    const wellnessScores = riskHistory && riskHistory.length > 0 
+      ? riskHistory.map(r => (r.wellnessIndex || 0) / 20) // Convert 0-100 to 0-5 scale
+      : [3, 3.5, 3, 2.5, 3.5, 4, 3.8]; // Fallback data
+    
+    const cleanedScores = cleanNumbers(wellnessScores, 3);
+    
     return {
-      labels: generateLabels(range, risks.length),
+      labels: generateLabels(range, cleanedScores.length),
       datasets: [{
-        data: risks,
+        data: cleanedScores,
         color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
       }],
     };
@@ -229,50 +233,6 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
     </View>
   );
 
-  // Time Range Selector Component
-  const TimeRangeSelector = () => (
-    <View style={styles.rangeSelector}>
-      <Text style={[styles.rangeLabel, { fontSize: responsive.fontSize.body }]}>
-        Time Range:
-      </Text>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.rangeScrollContent}
-      >
-        {['7d', '30d', '90d', '180d', '365d'].map((timeRange) => (
-          <TouchableOpacity
-            key={timeRange}
-            style={[
-              styles.rangeButton,
-              range === timeRange && styles.rangeButtonActive,
-              isSmallScreen && styles.rangeButtonSmall
-            ]}
-            onPress={() => handleRangeChange(timeRange)}
-          >
-            <Text style={[
-              styles.rangeButtonText,
-              range === timeRange && styles.rangeButtonTextActive,
-              isSmallScreen && styles.rangeButtonTextSmall
-            ]}>
-              {timeRange}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      <TouchableOpacity 
-        style={[styles.filterButton, isSmallScreen && styles.filterButtonSmall]}
-        onPress={() => setFilterModalVisible(true)}
-      >
-        <Ionicons 
-          name="filter" 
-          size={isSmallScreen ? 16 : 18} 
-          color={Colors.textSecondary} 
-        />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <Animated.ScrollView
@@ -284,17 +244,6 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
           isTablet && styles.scrollContentTablet
         ]}
       >
-
-        {/* Header with Time Range Selector */}
-        <View style={styles.header}>
-          <View style={styles.headerTitle}>
-            <Ionicons name="analytics" size={24} color={Colors.primary} />
-            <Text style={[styles.headerTitleText, { fontSize: responsive.fontSize.title + 2 }]}>
-              Mood Analytics
-            </Text>
-          </View>
-          <TimeRangeSelector />
-        </View>
 
         {/* Quick Stats Row */}
         <ScrollView 
@@ -424,31 +373,6 @@ export default function MoodAnalyticsView({ dashboard, riskHistory, selectedWidg
           </View>
         )}
 
-        {/* Filter Modal */}
-        <Modal
-          visible={filterModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setFilterModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[
-              styles.modalContent,
-              isSmallScreen && styles.modalContentSmall
-            ]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { fontSize: responsive.fontSize.title }]}>
-                  Filter Analytics
-                </Text>
-                <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                  <Ionicons name="close" size={24} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              {/* Add filter options here */}
-            </View>
-          </View>
-        </Modal>
-
       </Animated.ScrollView>
     </SafeAreaView>
   );
@@ -473,70 +397,6 @@ const styles = StyleSheet.create({
   scrollContentTablet: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerTitleText: {
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginLeft: 8,
-  },
-  rangeSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rangeLabel: {
-    color: Colors.textSecondary,
-    marginRight: 12,
-  },
-  rangeScrollContent: {
-    flexGrow: 1,
-  },
-  rangeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.card,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  rangeButtonSmall: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  rangeButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  rangeButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  rangeButtonTextSmall: {
-    fontSize: 11,
-  },
-  rangeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  filterButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterButtonSmall: {
-    padding: 6,
   },
   metricsRow: {
     marginBottom: 16,
@@ -641,30 +501,5 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 12,
     marginVertical: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalContentSmall: {
-    padding: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontWeight: '600',
-    color: Colors.textPrimary,
   },
 });

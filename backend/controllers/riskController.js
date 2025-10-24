@@ -1,5 +1,6 @@
 // backend/controllers/riskController.js
 import AIRiskResult from "../models/AIRiskResult.js";
+import User from "../models/User.js";
 import { sendAutomaticRiskAlert } from "./trustedContactController.js";
 
 /**
@@ -75,14 +76,29 @@ export const saveRiskAnalysis = async (req, res) => {
 
     await newResult.save();
 
-    // 🚨 Automatically send alert to trusted contacts if risk level is high
+    // 🚨 Check user's alert settings before sending automatic alerts
+    const user = await User.findById(userId).select('alertSettings');
+    const { autoAlert, criticalOnly } = user?.alertSettings || { autoAlert: true, criticalOnly: false };
+
+    // Define risk levels
+    const criticalRiskLevels = ["SERIOUS"];
     const highRiskLevels = ["SERIOUS", "STRESS", "ANGER", "ANXIETY"];
-    if (highRiskLevels.includes(riskLevel.toUpperCase())) {
-      console.log(`⚠️ High risk detected (${riskLevel}) - Sending automatic alerts...`);
+    
+    // Determine if alert should be sent based on user settings
+    const shouldSendAlert = autoAlert && (
+      criticalOnly 
+        ? criticalRiskLevels.includes(riskLevel.toUpperCase())
+        : highRiskLevels.includes(riskLevel.toUpperCase())
+    );
+
+    if (shouldSendAlert) {
+      console.log(`⚠️ High risk detected (${riskLevel}) - Sending automatic alerts (criticalOnly: ${criticalOnly})...`);
       // Send alert in background (don't wait for it)
       sendAutomaticRiskAlert(userId, newResult._id).catch(err => {
         console.error("Failed to send automatic alert:", err);
       });
+    } else if (highRiskLevels.includes(riskLevel.toUpperCase())) {
+      console.log(`⚠️ High risk detected (${riskLevel}) - Alerts disabled by user settings (autoAlert: ${autoAlert}, criticalOnly: ${criticalOnly})`);
     }
 
     res.status(201).json({ message: "AI risk result saved successfully", data: newResult });

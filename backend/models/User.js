@@ -6,6 +6,13 @@ const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    
+    // Alert settings for trusted contact notifications
+    alertSettings: {
+      autoAlert: { type: Boolean, default: true }, // Send automatic alerts when AI detects risk
+      criticalOnly: { type: Boolean, default: false }, // Only send alerts for critical/high risk
+      dailySummary: { type: Boolean, default: false }, // Send daily summary emails
+    },
   },
   { timestamps: true }
 );

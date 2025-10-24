@@ -235,7 +235,7 @@ export default function MoodStatsScreen({ navigation }) {
           <Ionicons name="document-text" size={responsive.icon.small} color={Colors.primary} />
         </View>
         <Text style={[styles.statValue, { fontSize: responsive.fontSize.metric }]}>
-          {dashboard?.moodLogs?.length || 0}
+          {dashboard?.totalEntries || dashboard?.moodLogs?.length || 0}
         </Text>
         <Text style={[styles.statLabel, { fontSize: responsive.fontSize.filter }]}>Entries</Text>
       </View>
@@ -247,7 +247,7 @@ export default function MoodStatsScreen({ navigation }) {
           <Ionicons name="flash" size={responsive.icon.small} color={Colors.accent} />
         </View>
         <Text style={[styles.statValue, { fontSize: responsive.fontSize.metric }]}>
-          {dashboard?.weeklyMoods?.length || 0}/7
+          {dashboard?.weeklyMoods?.filter(m => m > 0).length || 0}/7
         </Text>
         <Text style={[styles.statLabel, { fontSize: responsive.fontSize.filter }]}>This Week</Text>
       </View>
