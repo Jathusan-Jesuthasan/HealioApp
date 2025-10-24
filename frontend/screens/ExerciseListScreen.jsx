@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 
 const exercises = [
   { name: "Push-ups", duration: 30, reps: 15 },
@@ -17,52 +18,93 @@ const exercises = [
 ];
 
 export default function ExerciseListScreen({ navigation }) {
-  const [progress, setProgress] = useState({}); // store completion per exercise
+  const [progress, setProgress] = useState({});
 
   const handleExerciseComplete = (exerciseName) => {
     setProgress((prev) => ({ ...prev, [exerciseName]: true }));
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("ExerciseDetail", {
-          exercise: item,
-          onComplete: handleExerciseComplete, // callback for completion
-        })
-      }
-    >
-      <LinearGradient
-        colors={["#4e8cff", "#6ea8ff"]}
-        style={styles.item}
+  const renderItem = ({ item }) => {
+    const completed = progress[item.name];
+
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate("ExerciseDetail", {
+            exercise: item,
+            onComplete: handleExerciseComplete,
+          })
+        }
       >
-        <Text style={styles.text}>{item.name}</Text>
-        {progress[item.name] && (
-          <Text style={styles.completedText}>✅ Completed</Text>
-        )}
-      </LinearGradient>
-    </TouchableOpacity>
-  );
+        <LinearGradient
+          colors={completed ? ["#4caf50", "#66bb6a"] : ["#4e8cff", "#6ea8ff"]}
+          style={[styles.card, completed && styles.completedCard]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>{item.name}</Text>
+            {completed && <Ionicons name="checkmark-circle" size={24} color="#fff" />}
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardText}>Duration: {item.duration}s</Text>
+            <Text style={styles.cardText}>Reps: {item.reps}</Text>
+          </View>
+          {completed && (
+            <View style={styles.progressBar}>
+              <View style={styles.progressFill} />
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Text style={styles.header}>Today's Exercises</Text>
       <FlatList
         data={exercises}
         keyExtractor={(item) => item.name}
         renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 20 }}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa", padding: 10 },
-  item: {
+  container: { flex: 1, backgroundColor: "#f2f3f8", padding: 10 },
+  header: { fontSize: 24, fontWeight: "bold", marginVertical: 15, color: "#333" },
+  card: {
     padding: 20,
-    marginVertical: 8,
-    borderRadius: 12,
-    justifyContent: "space-between",
+    borderRadius: 16,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  text: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  completedText: { color: "#fff", fontSize: 14, marginTop: 5 },
+  completedCard: {
+    opacity: 0.9,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  cardBody: { marginTop: 10 },
+  cardText: { color: "#fff", fontSize: 16, marginVertical: 2 },
+  progressBar: {
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 3,
+    marginTop: 15,
+  },
+  progressFill: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 3,
+  },
 });
