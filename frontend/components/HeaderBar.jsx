@@ -8,12 +8,14 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
+import { navigate as globalNavigate, navigationRef } from "../navigation/NavigationService";
 
 const COLORS = {
   base: "#F5F7FA",
@@ -25,36 +27,29 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
   const { user, userRole, setUserRole } = useContext(AuthContext);
   const slide = useRef(new Animated.Value(-24)).current;
   const fade = useRef(new Animated.Value(0)).current;
-  const bellBounce = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const backPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slide, { toValue: 0, duration: 550, useNativeDriver: true }),
-      Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 550, useNativeDriver: false }),
+      Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: false }),
     ]).start();
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bellBounce, { toValue: 1, duration: 450, useNativeDriver: true }),
-        Animated.timing(bellBounce, { toValue: 0, duration: 450, useNativeDriver: true }),
-      ])
-    ).start();
+    // notifications/chat animation removed
   }, []);
 
   useEffect(() => {
     if (unreadCount > 0) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulse, { toValue: 0, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: false }),
+          Animated.timing(pulse, { toValue: 0, duration: 800, useNativeDriver: false }),
         ])
       ).start();
     }
   }, [unreadCount]);
 
-  const bellScale = bellBounce.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const badgeScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
   const backScale = backPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
 
@@ -64,23 +59,72 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
     navigation?.navigate?.("Home");
   };
 
-  const handleProfilePress = () => {
-    // Try to navigate to Profile, fallback to Home if not available
+  // Short tap: navigate directly to ProfileMain. Long press: show quick action menu.
+  const navigateToProfileNested = (nestedScreen) => {
+    // Prefer global navigationRef if available
     try {
-      navigation?.navigate?.("Profile");
-    } catch (error) {
-      console.warn("Profile navigation failed, falling back to Home:", error);
-      navigation?.navigate?.("Home");
+      if (navigationRef && navigationRef.isReady && navigationRef.isReady()) {
+        globalNavigate("Profile", { screen: nestedScreen });
+        return true;
+      }
+    } catch (err) {
+      // fall through to local navigation
     }
+
+    try {
+      // climb to the top-most navigator
+      let nav = navigation;
+      while (nav && typeof nav.getParent === "function" && nav.getParent()) {
+        nav = nav.getParent();
+      }
+      const targetNav = nav || navigation;
+      if (typeof targetNav.navigate === "function") {
+        targetNav.navigate("Profile", { screen: nestedScreen });
+        return true;
+      }
+    } catch (err) {
+      console.warn("Profile navigation helper failed:", err);
+    }
+
+    // last-resort: try plain navigate on provided navigation prop
+    try {
+      navigation && navigation.navigate && navigation.navigate("Profile", { screen: nestedScreen });
+      return true;
+    } catch (e) {
+      console.warn("Fallback Profile navigate failed:", e);
+    }
+
+    return false;
   };
 
-  const handleNotificationPress = () => {
-    if (userRole === "Youth") {
-      navigation?.navigate?.("Chat");
-    } else {
-      navigation?.navigate?.("Notifications");
-    }
+  const handleProfilePress = () => {
+    navigateToProfileNested("ProfileMain");
   };
+
+  const handleProfileLongPress = () => {
+    Alert.alert(
+      "Profile",
+      "Choose an action",
+      [
+        { text: "View Profile", onPress: () => navigateToProfileNested("ProfileMain") },
+        { text: "Change Role", onPress: () => navigateToProfileNested("RoleManagement") },
+        { text: "Cancel", style: "cancel" },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  function getInitials(user) {
+    try {
+      const name = (user && (user.displayName || user.name || user.email)) || '';
+      if (!name) return 'HI';
+      const parts = name.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    } catch (e) {
+      return 'HI';
+    }
+  }
 
   return (
     <SafeAreaView edges={["top"]} style={styles.wrap}>
@@ -126,41 +170,25 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
           />
         </View>
 
-        {/* Right: notifications and profile */}
+        {/* Right: profile only */}
         <View style={styles.right}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleNotificationPress}
-            style={styles.notificationBtn}
-          >
-            <Animated.View style={{ transform: [{ scale: bellScale }] }}>
-              <Ionicons 
-                name={userRole === "Youth" ? "chatbubble" : "notifications"} 
-                size={26} 
-                color={COLORS.blue} 
-              />
-            </Animated.View>
-
-            {unreadCount > 0 && (
-              <Animated.View style={[styles.badge, { transform: [{ scale: badgeScale }] }]}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleProfilePress}
+              onLongPress={handleProfileLongPress}
+              style={styles.profileBtn}
+              delayLongPress={400}
+            >
+              <Animated.View style={[styles.profileRing, { transform: [{ scale: backScale }] }]}> 
+                {user?.photoURL ? (
+                  <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+                ) : (
+                  <View style={styles.initialsWrap}>
+                    <Text style={styles.initialsText}>{getInitials(user)}</Text>
+                  </View>
+                )}
               </Animated.View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleProfilePress}
-            style={styles.profileBtn}
-          >
-            {user?.photoURL ? (
-              <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
-            ) : (
-              <View style={styles.profilePlaceholder}>
-                <Ionicons name="person" size={20} color={COLORS.blue} />
-              </View>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
         </View>
       </Animated.View>
     </SafeAreaView>
@@ -217,6 +245,32 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     borderColor: COLORS.blue,
+  },
+  profileRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    padding: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    ...Platform.select({ android: { elevation: 4 } }),
+  },
+  initialsWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E6F4EA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialsText: {
+    color: COLORS.green,
+    fontWeight: '700',
   },
   profilePlaceholder: {
     width: 32,

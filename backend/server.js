@@ -9,8 +9,14 @@ import trustedRoutes from "./routes/trustedContactRoutes.js";
 import sosRoutes from "./routes/sosRoutes.js";
 import userRoleRoutes from "./routes/userRoleRoutes.js";
 import trustedDashboardRoutes from "./routes/trustedDashboardRoutes.js";
+import conversationRoutes from "./routes/conversationRoutes.js";
 import communityRoutes from "./routes/communityRoutes.js";
 import questionnaireRoutes from "./routes/questionnaireRoutes.js";
+import emotionRoutes from "./routes/emotionRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import moodLogRoutes from "./routes/moodLogRoutes.js";
+import path from 'path';
+import fs from 'fs';
 
 
 
@@ -31,17 +37,33 @@ app.use(
   })
 );
 
+// AI routes (Gemini)
+app.use("/api/ai", aiRoutes);
+
+// Ensure uploads directory exists and serve it
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use('/uploads', express.static(uploadsDir));
+
 // 🩺 Health & Root Routes
 app.get("/", (req, res) => res.send("✅ Healio API is running"));
 app.get("/health", (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
 );
 
+app.use("/api/moodlogs", moodLogRoutes);
+app.use("/api", emotionRoutes);
+
+// Hugging Face emotion analyzer
+app.use("/api", emotionRoutes); // -> /api/analyze-emotion
+
 // 🧭 API Routes
 app.use("/api/auth", authRoutes);   // → register, login, forgot-password, reset-password
 app.use("/api/users", userRoutes);  // → get/update/delete user profile (CRUD)
 
 app.use("/api/TrustedContact", trustedRoutes); // → manage trusted contacts & emergency alerts
+// Legacy/lowercase path used by frontend calls — keep as alias for compatibility
+app.use("/api/trusted", trustedRoutes);
 
 app.use("/api/sos", sosRoutes); // → send SOS alerts to trusted contacts
 
@@ -51,6 +73,9 @@ app.use("/api/trusted", trustedDashboardRoutes); // → trusted contact dashboar
 
 app.use("/api/community", communityRoutes); // → community posts & interactions
 app.use("/api/questionnaire", questionnaireRoutes); // → questionnaire & risk assessment
+
+// Conversations (metadata) — create/list conversation resources
+app.use('/api/conversations', conversationRoutes);
 
 // ⚠️ Global Error Fallback (always last)
 app.use((err, req, res, next) => {

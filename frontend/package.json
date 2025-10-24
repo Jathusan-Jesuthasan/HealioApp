@@ -1,6 +1,7 @@
 {
-  "name": "frontend",
+  "name": "Healio",
   "version": "1.0.0",
+  "slug": "Healio",
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -48,6 +49,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-chart-kit": "^6.12.0",
+    "react-native-confetti-cannon": "^1.5.2",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-gifted-chat": "^2.8.1",
     "react-native-paper": "^5.14.5",

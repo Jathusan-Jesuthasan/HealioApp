@@ -1,17 +1,35 @@
 import React, { useContext } from "react";
-import { View, ActivityIndicator, Text } from "react-native";
+import { View, ActivityIndicator, Text, LogBox } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { navigationRef } from "./navigation/NavigationService";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import "react-native-reanimated";
 import { ThemeProvider } from "./context/ThemeContext";
 
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+
+// Ignore noisy RN-web responder warnings in development (safe to suppress)
+LogBox.ignoreLogs([
+  "Unknown event handler property",
+  "Invalid DOM property",
+  "Invalid DOM property `transform-origin`. Did you mean `transformOrigin`?",
+  "props.pointerEvents is deprecated",
+  "Unknown event handler property `onStartShouldSetResponder`",
+  "Unknown event handler property `onResponderTerminationRequest`",
+  "Unknown event handler property `onResponderGrant`",
+  "Unknown event handler property `onResponderMove`",
+  "Unknown event handler property `onResponderRelease`",
+  "Unknown event handler property `onResponderTerminate`",
+  "Unknown event handler property `onResponder",
+]);
 import { OnboardingProvider, OnboardingContext } from "./context/OnboardingContext";
 import BottomNavBar from "./components/BottomNavBar";
 import YouthBottomNavBar from "./components/YouthBottomNavBar";
 import TrustedBottomNavBar from "./components/TrustedBottomNavBar";
+import SOSFab from "./components/SOSFab";
+import { useNavigation } from "@react-navigation/native";
 import HeaderBar from "./components/HeaderBar";
 
 // 🧩 Core Screens
@@ -21,9 +39,12 @@ import LoginScreen from "./screens/User_Profile/LoginScreen";
 import SignupScreen from "./screens/User_Profile/SignupScreen";
 import YouthQuestionnaireScreen from "./screens/User_Profile/YouthQuestionnaireScreen";
 import RoleSelectionScreen from "./screens/User_Profile/RoleSelectionScreen";
+import OnboardingWizard from "./screens/User_Profile/OnboardingWizard";
 import DashboardScreen from "./screens/DashboardScreen";
 import ProfileScreen from "./screens/User_Profile/ProfileScreen";
-import MoodLogScreen from "./screens/MoodLogScreen";
+import MoodLogScreen from './screens/MoodInsight/MoodLogScreen';
+import MoodHistoryScreen from './screens/MoodInsight/MoodHistoryScreen';
+import MoodResultScreen from './screens/MoodInsight/MoodResultScreen';
 
 // 👤 Profile-related
 import PersonalInfoScreen from "./screens/User_Profile/PersonalInfoScreen";
@@ -39,11 +60,13 @@ import SecurityScreen from "./screens/Youth_Trusted/SecurityScreen";
 import HelpCenterScreen from "./screens/User_Profile/HelpCenterScreen";
 import KnowledgeHubScreen from "./screens/Youth_Trusted/KnowledgeHubScreen";
 import MessagesScreen from "./screens/Trusted_Contact/MessagesScreen";
+import ChatScreen from "./screens/Trusted_Contact/ChatScreen";
 import LogoutScreen from "./screens/User_Profile/LogoutScreen";
 import SOSScreen from "./screens/Youth_User/SOSScreen";
 import RoleManagementScreen from "./screens/User_Profile/RoleManagementScreen";
 import TrustedDashboardScreen from "./screens/Trusted_Contact/TrustedDashboardScreen";
 import CommunityHubScreen from "./screens/Youth_Trusted/CommunityHubScreen";
+// Chat screens handled elsewhere
 
 // Temporary placeholders
 const Stub = ({ label }) => (
@@ -51,7 +74,6 @@ const Stub = ({ label }) => (
     <Text>{label}</Text>
   </View>
 );
-const ChatScreen = () => <Stub label="Chat" />;
 const ActivityScreen = () => <Stub label="Personalized Activity" />;
 
 const Stack = createNativeStackNavigator();
@@ -71,7 +93,6 @@ const withHeader = (Component, unreadCount = 3) => {
 
 /* ✅ Pre-wrap all components before navigator registration */
 const DashboardWithHeader = withHeader(DashboardScreen);
-const ChatWithHeader = withHeader(ChatScreen);
 const MoodWithHeader = withHeader(MoodLogScreen);
 const ActivityWithHeader = withHeader(ActivityScreen);
 const ProfileWithHeader = withHeader(ProfileScreen);
@@ -79,6 +100,8 @@ const PersonalInfoWithHeader = withHeader(PersonalInfoScreen);
 const NotificationsWithHeader = withHeader(NotificationsScreen);
 const LanguageWithHeader = withHeader(LanguageScreen);
 const ThemeWithHeader = withHeader(ThemeScreen);
+const YouthQuestionnaireWithHeader = withHeader(YouthQuestionnaireScreen);
+const RoleSelectionWithHeader = withHeader(RoleSelectionScreen);
 const InviteWithHeader = withHeader(InviteFriendsScreen);
 const AddTrustedWithHeader = withHeader(AddTrustedContact);
 const TrustedContactsWithHeader = withHeader(TrustedContactsScreen);
@@ -92,6 +115,10 @@ const HelpCenterWithHeader = withHeader(HelpCenterScreen);
 const KnowledgeHubWithHeader = withHeader(KnowledgeHubScreen);
 const MessagesWithHeader = withHeader(MessagesScreen);
 const LogoutWithHeader = withHeader(LogoutScreen);
+// Provide a ChatWithHeader alias so tabs referencing it don't crash.
+const ChatWithHeader = withHeader(ChatScreen);
+const ChatRoomWithHeader = withHeader(ChatScreen);
+// Chat wrappers removed (restored to prior state)
 
 /* ---------------- PROFILE STACK ---------------- */
 function ProfileStack() {
@@ -102,6 +129,13 @@ function ProfileStack() {
       <Stack.Screen name="Notifications" component={NotificationsWithHeader} />
       <Stack.Screen name="Language" component={LanguageWithHeader} />
       <Stack.Screen name="Theme" component={ThemeWithHeader} />
+  <Stack.Screen name="YouthQuestionnaire" component={YouthQuestionnaireWithHeader} />
+  <Stack.Screen name="RoleSelection" component={RoleSelectionWithHeader} />
+
+      {/* Mood Insight */}
+      <Stack.Screen name="MoodLog" component={withHeader(MoodLogScreen)} />
+      <Stack.Screen name="MoodHistory" component={withHeader(MoodHistoryScreen)} />
+      <Stack.Screen name="MoodResult" component={withHeader(MoodResultScreen)} />
 
       {/* Trusted Contact */}
       <Stack.Screen name="InviteFriends" component={InviteWithHeader} />
@@ -110,6 +144,7 @@ function ProfileStack() {
       <Stack.Screen name="EmergencyContact" component={EmergencyWithHeader} />
       <Stack.Screen name="YouthDashboard" component={YouthDashWithHeader} />
       <Stack.Screen name="TrustedDashboard" component={TrustedDashWithHeader} />
+  <Stack.Screen name="ChatRoom" component={ChatRoomWithHeader} />
 
       {/* Privacy / Community */}
       <Stack.Screen name="RoleManagement" component={RoleManageWithHeader} />
@@ -118,28 +153,37 @@ function ProfileStack() {
       <Stack.Screen name="HelpCenter" component={HelpCenterWithHeader} />
       <Stack.Screen name="KnowledgeHub" component={KnowledgeHubWithHeader} />
       <Stack.Screen name="Messages" component={MessagesWithHeader} />
-      <Stack.Screen name="SOS" component={SOSScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SOS" component={SOSScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Logout" component={LogoutWithHeader} />
     </Stack.Navigator>
+
+    
     
   );
 }
 
 /* ---------------- YOUTH USER TABS ---------------- */
 function YouthUserTabs() {
+  const navigation = useNavigation();
+
   return (
-    <Tab.Navigator
-      tabBar={(props) => <YouthBottomNavBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Home" component={DashboardWithHeader} />
-      <Tab.Screen name="Activity" component={ActivityWithHeader} />
-      <Tab.Screen name="MoodLog" component={MoodWithHeader} />
-      <Tab.Screen name="Chat" component={ChatWithHeader} />
-      <Tab.Screen name="Community" component={CommunityHubWithHeader} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
-    </Tab.Navigator>
-    
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        tabBar={(props) => <YouthBottomNavBar {...props} />}
+        screenOptions={{ headerShown: false }}
+      >
+        <Tab.Screen name="Home" component={DashboardWithHeader} />
+        <Tab.Screen name="Activity" component={ActivityWithHeader} />
+        <Tab.Screen name="MoodLog" component={MoodWithHeader} />
+        <Tab.Screen name="Chat" component={ChatWithHeader} />
+        <Tab.Screen name="Community" component={CommunityHubWithHeader} />
+        <Tab.Screen name="Profile" component={ProfileStack} />
+      </Tab.Navigator>
+
+      {/* Floating SOS FAB for youth users - opens the SOS screen inside Profile stack */}
+      <SOSFab onPress={() => navigation.navigate("Profile", { screen: "SOS" })} />
+      {/* Floating chat actions removed (undo) */}
+    </View>
   );
 }
 
@@ -152,12 +196,13 @@ function TrustedPersonTabs() {
     >
       <Tab.Screen name="TrustedDashboard" component={TrustedDashWithHeader} />
       <Tab.Screen name="Analytics" component={TrustedDashWithHeader} />
-      <Tab.Screen name="Chat" component={ChatWithHeader} />
+  <Tab.Screen name="Chat" component={ChatWithHeader} />
       <Tab.Screen name="Community" component={CommunityHubWithHeader} />
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
+
 
 /* ---------------- AUTH STACK ---------------- */
 function AuthStack() {
@@ -176,6 +221,7 @@ function AuthStack() {
       )}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
+  <Stack.Screen name="OnboardingWizard" component={OnboardingWizard} />
       <Stack.Screen name="YouthQuestionnaire" component={YouthQuestionnaireScreen} />
       <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
     </Stack.Navigator>
@@ -195,9 +241,9 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={DefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
       {userToken ? (
-        userRole === "trusted" ? <TrustedPersonTabs /> : <YouthUserTabs />
+  userRole === "Trusted" ? <TrustedPersonTabs /> : <YouthUserTabs />
       ) : (
         <AuthStack />
       )}
