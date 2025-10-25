@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import api from "../config/api";
+import api from "../../config/api";
 
 export default function RewardsScreen() {
   const [rewards, setRewards] = useState(null);
@@ -172,7 +172,7 @@ export default function RewardsScreen() {
           {/* 🎉 Confetti animation */}
           {dailyCelebrate && (
             <LottieView
-              source={require("../assets/lottie/confetti.json")}
+              source={require("../../assets/lottie/confetti.json")}
               autoPlay
               loop={false}
               style={styles.lottie}

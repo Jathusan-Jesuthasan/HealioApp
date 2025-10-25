@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useMemo, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -10,33 +10,55 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LineChart } from "react-native-chart-kit";
-import { GoalsContext } from "../context/GoalsContext";
-import api from "../config/api";
+import { GoalsContext } from "../../context/GoalsContext";
+import { AuthContext } from "../../context/AuthContext";
+import api from "../../config/api";
 
 const LOG_KEY = "exerciseLogs";
 const STREAK_KEY = "userStreak";
 
 export default function ProgressScreen() {
   const { goals, saveGoals } = useContext(GoalsContext);
+  const { user } = useContext(AuthContext);
   const [logs, setLogs] = useState([]);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const userId = "demo_user";
+  const userId = useMemo(() => {
+    const candidate = user?.id || user?._id || user?.uid;
+    return candidate || "demo_user";
+  }, [user]);
 
   useEffect(() => {
     const fetchFromBackend = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
       try {
         const [goalRes, medRes] = await Promise.all([
           api.get(`/api/goals/${userId}`),
           api.get(`/api/meditations/${userId}`),
         ]);
 
-        if (goalRes.data) {
-          await saveGoals({
-            sessionsPerWeek: goalRes.data.sessionsPerWeek,
-            minutesPerDay: goalRes.data.minutesPerDay,
-          });
+        if (goalRes.data && Object.keys(goalRes.data).length) {
+          const backendGoals = {
+            sessionsPerWeek: Number(goalRes.data.sessionsPerWeek) || 0,
+            minutesPerDay: Number(goalRes.data.minutesPerDay) || 0,
+            updatedAt: goalRes.data.updatedAt
+              ? new Date(goalRes.data.updatedAt).getTime()
+              : 0,
+          };
+
+          const localUpdatedAt = Number(goals?.updatedAt) || 0;
+          if (backendGoals.updatedAt >= localUpdatedAt) {
+            await saveGoals(backendGoals, { skipStorage: true });
+          } else {
+            console.log("ℹ️ Skipped backend goals sync (local newer):", {
+              backend: backendGoals,
+              local: goals,
+            });
+          }
         }
 
         if (medRes.data?.length) {
@@ -60,7 +82,7 @@ export default function ProgressScreen() {
       }
     };
     fetchFromBackend();
-  }, []);
+  }, [userId, saveGoals]);
 
   const calculateAndSaveStreak = async (logList) => {
     if (!logList.length) {

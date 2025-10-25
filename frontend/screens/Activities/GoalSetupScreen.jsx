@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { GoalsContext } from "../context/GoalsContext.jsx";
-import api from "../config/api";
+import { GoalsContext } from "../../context/GoalsContext.jsx";
+import { AuthContext } from "../../context/AuthContext.js";
+import api from "../../config/api.js";
 
 export default function GoalSetupScreen({ navigation }) {
   const { goals, saveGoals } = useContext(GoalsContext);
+  const { user } = useContext(AuthContext);
   const [sessionsPerWeek, setSessionsPerWeek] = useState(
     String(goals.sessionsPerWeek)
   );
@@ -22,7 +24,10 @@ export default function GoalSetupScreen({ navigation }) {
     String(goals.minutesPerDay)
   );
 
-  const userId = "demo_user"; // ✅ Replace with actual AuthContext user ID later
+  const userId = useMemo(() => {
+    const candidate = user?.id || user?._id || user?.uid;
+    return candidate || "demo_user";
+  }, [user]);
 
   const handleSave = async () => {
     const newGoals = {
@@ -31,11 +36,24 @@ export default function GoalSetupScreen({ navigation }) {
     };
 
     try {
-      // ✅ Save to backend (MongoDB)
-      await api.post("/api/goals/add", { userId, ...newGoals });
+      // ✅ Persist to backend (MongoDB) and rely on the canonical response
+      const { data } = await api.post("/api/goals/add", { userId, ...newGoals });
 
-      // ✅ Save locally (AsyncStorage)
-      await saveGoals(newGoals);
+      const backendSessions = Number(data?.sessionsPerWeek);
+      const backendMinutes = Number(data?.minutesPerDay);
+
+      const persistedGoals = {
+        sessionsPerWeek: Number.isFinite(backendSessions)
+          ? backendSessions
+          : newGoals.sessionsPerWeek,
+        minutesPerDay: Number.isFinite(backendMinutes)
+          ? backendMinutes
+          : newGoals.minutesPerDay,
+        updatedAt: data?.updatedAt ? new Date(data.updatedAt).getTime() : Date.now(),
+      };
+
+      // ✅ Save locally (AsyncStorage + context)
+      await saveGoals(persistedGoals);
 
       Alert.alert("✅ Saved", "Your new goals have been updated!");
       navigation.goBack();

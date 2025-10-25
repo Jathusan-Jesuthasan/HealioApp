@@ -15,9 +15,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import api from "../config/api";
-import { useActivity } from "../context/ActivityContext";
-import { showSyncedToast } from "../utils/toastUtils";
+import api from "../../config/api";
+import { useActivity } from "../../context/ActivityContext";
+import { showSyncedToast } from "../../utils/toastUtils";
 
 export default function MeditationScreen() {
   const [seconds, setSeconds] = useState(300); // default 5 min

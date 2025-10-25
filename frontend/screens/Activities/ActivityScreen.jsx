@@ -91,7 +91,6 @@ export default function ActivityScreen({ navigation }) {
       title: "Set Goals",
       go: () => navigation.navigate("GoalSetup"),
     },
-    
     {
       key: "Progress",
       icon: "📊",
@@ -103,6 +102,28 @@ export default function ActivityScreen({ navigation }) {
       icon: "🏆",
       title: "Rewards",
       go: () => navigation.navigate("Rewards"),
+    },
+  
+  ];
+
+  const deepDives = [
+    {
+      key: "ActivityDetail",
+      icon: "🧭",
+      title: "Guided Session",
+      go: () =>
+        navigation.navigate("ActivityDetail", {
+          activity: "Meditation",
+        }),
+    },
+    {
+      key: "ExerciseDetail",
+      icon: "⏱️",
+      title: "Workout Timer",
+      go: () =>
+        navigation.navigate("ExerciseDetail", {
+          exercise: { name: "Push-ups", duration: 30, reps: 15 },
+        }),
     },
   ];
 

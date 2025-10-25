@@ -17,9 +17,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import api from "../config/api";
-import { showSyncedToast } from "../utils/toastUtils";
-import { useActivity } from "../context/ActivityContext";
+import api from "../../config/api";
+import { showSyncedToast } from "../../utils/toastUtils";
+import { useActivity } from "../../context/ActivityContext";
 
 export default function ExerciseDetailScreen({ route, navigation }) {
   const exercise = route?.params?.exercise || { name: "Unknown Exercise" };
@@ -37,19 +37,19 @@ export default function ExerciseDetailScreen({ route, navigation }) {
   const exerciseInfo = {
     "Push-ups": {
       instruction: "Keep your body straight. Lower and push back up smoothly.",
-      animation: require("../assets/lottie/pushup.json"),
+      animation: require("../../assets/lottie/pushup.json"),
     },
     Squats: {
       instruction: "Feet apart, sit back, keep your knees behind toes.",
-      animation: require("../assets/lottie/squat.json"),
+      animation: require("../../assets/lottie/squat.json"),
     },
     Plank: {
       instruction: "Hold body straight, elbows below shoulders.",
-      animation: require("../assets/lottie/plank.json"),
+      animation: require("../../assets/lottie/plank.json"),
     },
     "Jumping Jacks": {
       instruction: "Jump with legs apart, arms overhead, then back.",
-      animation: require("../assets/lottie/jumping.json"),
+      animation: require("../../assets/lottie/jumping.json"),
     },
   };
 
