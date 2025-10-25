@@ -31,6 +31,14 @@ const MoodLogScreen = ({ navigation }) => {
     { emoji: "😴", label: "Tired", color: "#10B981" },
   ];
 
+  // Helper to convert hex to rgba with opacity
+  const hexToRgba = (hex, alpha = 0.12) => {
+    const match = hex.replace('#', '').match(/.{1,2}/g);
+    if (!match || match.length < 3) return hex;
+    const [r, g, b] = match.map((x) => parseInt(x, 16));
+    return `rgba(${r},${g},${b},${alpha})`;
+  };
+
   const factors = [
     "Work",
     "Exercise",
@@ -158,11 +166,11 @@ const MoodLogScreen = ({ navigation }) => {
             <View style={styles.moodContainer}>
               {moods.map((mood, i) => (
                 <TouchableOpacity
-                  key={i}
+                  key={mood.label}
                   style={[
                     styles.moodButton,
                     selectedMood?.label === mood.label && {
-                      backgroundColor: `${mood.color}20`,
+                      backgroundColor: hexToRgba(mood.color, 0.12),
                       borderColor: mood.color,
                       transform: [{ scale: 1.1 }],
                     },

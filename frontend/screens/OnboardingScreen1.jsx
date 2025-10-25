@@ -10,6 +10,7 @@ import {
   Dimensions,
   StatusBar,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -38,15 +39,32 @@ const SLIDES = [
   },
 ];
 
-export default function OnboardingScreen({ navigation }) {
+export default function OnboardingScreen({ navigation, route }) {
   const [index, setIndex] = useState(0);
   const ref = useRef(null);
+
+  // ⬇️ setter passed from App.js
+  const setHasOnboarded = route?.params?.setHasOnboarded;
+
+  const finishOnboarding = async () => {
+    try {
+      await AsyncStorage.setItem("hasOnboarded", "1");
+      if (setHasOnboarded) setHasOnboarded(true);
+      navigation.replace("Login");
+    } catch (e) {
+      console.error("Error saving onboarding flag:", e);
+      navigation.replace("Login"); // fallback
+    }
+  };
 
   const handleNext = () => {
     if (index < SLIDES.length - 1) {
       ref.current?.scrollToIndex({ index: index + 1, animated: true });
     } else {
+                  finishOnboarding(); // ✅ save + go to Login
+
       navigation.replace("Login"); // ✅ after last slide → Login
+
     }
   };
 

@@ -38,10 +38,9 @@ export default function LoginScreen({ navigation }) {
         email: trimmedEmail,
         password,
       });
-      await signIn(data.token); // saved to AsyncStorage via context
-      Alert.alert("Success", "Login Successful!");
-      // If your App.js switches on userToken, no manual nav needed
-      // navigation.replace("Dashboard");
+    await signIn(data.token); // saved to AsyncStorage via context
+    Alert.alert("Success", "Login Successful!");
+    navigation.replace("MoodLog"); // Go to MoodLogScreen after login
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
