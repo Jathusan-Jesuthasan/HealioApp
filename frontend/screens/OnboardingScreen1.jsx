@@ -68,7 +68,7 @@ export default function OnboardingScreen({ navigation, route }) {
     }
   };
 
-  const handleSkip = () => navigation.replace("Login");
+  const handleSkip = () => finishOnboarding();
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems?.length) {

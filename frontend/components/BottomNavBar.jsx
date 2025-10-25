@@ -1,3 +1,4 @@
+// frontend/components/BottomNavBar.js
 import React, { useEffect } from "react";
 import {
   View,
