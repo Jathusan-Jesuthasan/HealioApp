@@ -11,9 +11,9 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import Header from "../components/HeaderBar.jsx";
+import Header from "../../components/HeaderBar.jsx";
 //import Footer from "../components/BottomBar.jsx";
-import { logActivity } from "../utils/logActivity.jsx";
+import { logActivity } from "../../utils/logActivity.jsx";
 //import { View, Text, StyleSheet } from "react-native"
 export default function ActivityDetailScreen({ route, navigation }) {
   const { activity } = route.params; // "Meditation" | "Journaling" | "Exercise" | "Music" | ...

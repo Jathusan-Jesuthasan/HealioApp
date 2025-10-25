@@ -9,8 +9,8 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { saveApiKey, deleteApiKey } from "../services/secretStore";
-import { resetApiKeyCache } from "../services/llmClient";
+import { saveApiKey, deleteApiKey } from "../../services/secretStore";
+import { resetApiKeyCache } from "../../services/llmClient";
 
 export default function DevSettingsScreen({ navigation }) {
   const [key, setKey] = useState("");

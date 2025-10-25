@@ -8,8 +8,7 @@ import {
   markRead,
 } from "../controllers/chatController.js";
 
-
-router.use(protect);
+const router = express.Router();
 
 // Conversations
 router.get("/conversations", listConversations);
@@ -20,9 +19,9 @@ router.get("/conversations/:id/messages", getMessages);
 router.post("/conversations/:id/messages", sendMessage);
 router.post("/conversations/:id/read", markRead);
 import ChatMessage from "../models/ChatMessage.js";
-import protect from "../middleware/authMiddleware.js"; // your middleware
 
-const router = express.Router();
+router.use(protect);
+
 
 // ➕ Add message (only logged-in user)
 router.post("/add", protect, async (req, res) => {

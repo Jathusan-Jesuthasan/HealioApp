@@ -12,8 +12,8 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { chatWithLLM } from "../services/llmClient";
-import api from "../config/api";
+import { chatWithLLM } from "../../services/llmClient";
+import api from "../../config/api";
 
 /* ---------------- constants ---------------- */
 const BG = "#F6F7FB";
@@ -204,7 +204,7 @@ export default function ChatbotScreen({ navigation }) {
       {/* Header */}
       <View style={styles.headerCard}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Image source={require("../assets/robo4.jpg")} style={styles.avatar} />
+          <Image source={require("../../assets/robo4.jpg")} style={styles.avatar} />
           <Text style={styles.headerTitle}>Healio AI Chatbot</Text>
         </View>
       </View>
