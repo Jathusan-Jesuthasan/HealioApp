@@ -1,21 +1,58 @@
+// backend/models/TrustedContact.js
 import mongoose from "mongoose";
 
-const trustedContactSchema = new mongoose.Schema({
-  youthId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  trustedId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  name: { type: String, required: true },
-  email: { type: String },
-  phone: { type: String },
-  relationship: { type: String },
-  status: { type: String, enum: ["Pending", "Accepted", "Rejected"], default: "Pending" },
-  privacyLevel: {
-    type: String,
-    enum: ["Alerts Only", "Mood Trends", "Full Access"],
-    default: "Alerts Only",
-  },
-  inviteCode: { type: String },
-  createdAt: { type: Date, default: Date.now },
-});
+const TrustedContactSchema = new mongoose.Schema(
+  {
+    // Reference to the user who owns this contact
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
-const TrustedContact = mongoose.model("TrustedContact", trustedContactSchema);
+    // Contact's name
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    // Relation to the user (e.g., parent, friend)
+    relation: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    // Optional phone number
+    phone: {
+      type: String,
+      trim: true,
+    },
+
+    // Email address (required)
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+
+    // Notification methods: email, sms, or both
+    notifyVia: {
+      type: [String],
+      enum: ["email", "sms"],
+      default: ["email"],
+    },
+  },
+  {
+    timestamps: true, // Automatically adds createdAt and updatedAt
+  }
+);
+
+// Prevent model overwrite issues in watch mode (e.g., with nodemon)
+const TrustedContact =
+  mongoose.models.TrustedContact ||
+  mongoose.model("TrustedContact", TrustedContactSchema);
+
 export default TrustedContact;

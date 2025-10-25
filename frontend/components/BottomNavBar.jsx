@@ -1,22 +1,14 @@
 // frontend/components/BottomNavBar.js
-import React, { useEffect } from "react";
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Platform,
-} from "react-native";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import React, { useEffect } from 'react';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   withSpring,
   withRepeat,
   withTiming,
   useAnimatedStyle,
-} from "react-native-reanimated";
-
-const { width } = Dimensions.get("window");
+} from 'react-native-reanimated';
 
 export default function BottomNavBar({ state, navigation }) {
   const handlePress = (routeName) => {
@@ -77,7 +69,7 @@ function TabIcon({ icon, active, onPress }) {
     <TouchableOpacity style={styles.tabButton} activeOpacity={0.8} onPress={onPress}>
       <Animated.View style={animatedStyle}>
         {React.cloneElement(icon, {
-          color: active ? "#377DFF" : "#6B7280",
+          color: active ? '#377DFF' : '#6B7280',
         })}
       </Animated.View>
     </TouchableOpacity>
@@ -109,18 +101,18 @@ function MoodFab({ onPress }) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#fff',
     height: 70,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 8,
-    position: "absolute",
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
@@ -128,29 +120,29 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fabWrapper: {
-    position: "absolute",
+    position: 'absolute',
     top: -30,
-    alignSelf: "center",
+    alignSelf: 'center',
   },
   glowCircle: {
-    position: "absolute",
+    position: 'absolute',
     width: 72,
     height: 72,
     borderRadius: 36,
     backgroundColor: "#10B98155",
   },
   fabButton: {
-    backgroundColor: "#10B981",
+    backgroundColor: '#10B981',
     width: 68,
     height: 68,
     borderRadius: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 8,

@@ -1,6 +1,6 @@
 // App.js
-import React, { useContext, useEffect } from "react";
-import { View, ActivityIndicator, LogBox } from "react-native";
+import React, { useContext, useEffect ,useState, memo} from "react";
+import { View, ActivityIndicator, LogBox ,Text} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { navigationRef } from "./navigation/NavigationService";
@@ -39,6 +39,23 @@ import YouthBottomNavBar from "./components/YouthBottomNavBar";
 import TrustedBottomNavBar from "./components/TrustedBottomNavBar";
 import SOSFab from "./components/SOSFab";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import Colors from './utils/Colors'; // ✅ Safe import
+
+
+// ---- New feature screens ----
+import RiskDetectionScreen from './screens/Analysis/RiskDetectionScreen';
+import MoodStatsScreen from './screens/Analysis/MoodStatsScreen';
+import AIInsightsHistory from './screens/Analysis/AIInsightsHistory';
+import TrustedRiskAlert from './screens/Analysis/TrustedRiskAlert';
+
+// ---- Simple stubs ----
+const Stub = ({ label }) => (
+  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <Text>{label}</Text>
+  </View>
+);
 
 // 🧩 Core Screens
 import WelcomeScreen from "./screens/User_Profile/WelcomeScreen";
@@ -136,6 +153,11 @@ const LogoutWithHeader = withHeader(LogoutScreen);
 const ChatWithHeader = withHeader(ChatScreen);
 const ChatRoomWithHeader = withHeader(ChatScreen);
 // Chat wrappers removed (restored to prior state)
+
+const AppTabs = () => {
+  const { userRole } = useContext(AuthContext);
+  return userRole === "Trusted" ? <TrustedPersonTabs /> : <YouthUserTabs />;
+};
 
 function ActivityStackNavigator() {
   return (
@@ -236,18 +258,22 @@ function TrustedPersonTabs() {
   <Tab.Screen name="Activity" component={ActivityStackNavigator} />
       <Tab.Screen name="Community" component={CommunityHubWithHeader} />
       <Tab.Screen name="Profile" component={ProfileStack} />
+      
     </Tab.Navigator>
   );
 }
 
+// ---- Onboarding wrapper ----
+const Onboarding1Screen = memo(function Onboarding1Screen(props) {
+  const setter = props?.route?.params?.setHasOnboarded;
+  return <OnboardingScreen1 {...props} setHasOnboarded={setter} />;
+});
 
-/* ---------------- AUTH STACK ---------------- */
-function AuthStack() {
-  const { hasOnboarded } = useContext(OnboardingContext);
-
+// ---- Auth Stack ----
+function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
-      initialRouteName={hasOnboarded ? "Login" : "Welcome"}
+      initialRouteName={hasOnboarded ? 'Login' : 'Welcome'}
       screenOptions={{ headerShown: false }}
     >
       {!hasOnboarded && (
@@ -265,30 +291,73 @@ function AuthStack() {
   );
 }
 
-/* ------------------- Root Navigator ------------------- */
+// ---- App Theme with Colors.js ----
+const AppTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: Colors?.primary || '#F5F7FA',
+    background: Colors?.background || '#F5F7FA',
+    card: Colors?.card || '#FFFFFF',
+    text: Colors?.textPrimary || '#111827',
+    border: Colors?.border || '#E5E7EB',
+    notification: Colors?.accent || '#10B981',
+  },
+};
+
+// ---- Root Navigator ----
 function RootNavigator() {
   const { userToken, userRole, loading } = useContext(AuthContext);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    const checkFlags = async () => {
+      try {
+        const v = await AsyncStorage.getItem('hasOnboarded');
+        setHasOnboarded(!!v);
+      } catch (e) {
+        console.error('Error checking onboarding/token:', e);
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkFlags();
+  }, []);
+
+  if (loading || checking) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#667eea" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer ref={navigationRef} theme={DefaultTheme}>
-      {userToken ? (
-  userRole === "Trusted" ? <TrustedPersonTabs /> : <YouthUserTabs />
-      ) : (
-        <AuthStack />
-      )}
+    <NavigationContainer ref={navigationRef} theme={AppTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {userToken ? (
+          <>
+            {/* Main Tabs */}
+            <Stack.Screen name="AppTabs" component={AppTabs} />
+            {/* Extra Feature Screens */}
+            <Stack.Screen name="RiskDetail" component={withHeader(RiskDetectionScreen)} />
+            <Stack.Screen name="MoodStats" component={withHeader(MoodStatsScreen)} />
+            <Stack.Screen name="AIInsightsHistory" component={withHeader(AIInsightsHistory)} />
+            <Stack.Screen name="TrustedPerson" component={withHeader(TrustedRiskAlert)} />
+          </>
+        ) : (
+          <Stack.Screen name="AuthStack">
+            {() => <AuthStack hasOnboarded={hasOnboarded} setHasOnboarded={setHasOnboarded} />}
+          </Stack.Screen>
+        )}
+      </Stack.Navigator>
     </NavigationContainer>
   );
-}
+} 
 
-/* ---------------- APP ENTRY ---------------- */
+
+// ---- Entry Point ----
 export default function App() {
   // ✅ Test backend connection once app starts
   useEffect(() => {

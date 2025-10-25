@@ -81,9 +81,17 @@ const userSchema = new mongoose.Schema(
     unreadMessages: { type: Number, default: 0 },
   // List of trusted contact references (for quick access within user doc)
   trustedContacts: [{ type: mongoose.Schema.Types.ObjectId, ref: "TrustedContact" }],
+
+  // Alert settings for trusted contact notifications
+    alertSettings: {
+      autoAlert: { type: Boolean, default: true }, // Send automatic alerts when AI detects risk
+      criticalOnly: { type: Boolean, default: false }, // Only send alerts for critical/high risk
+      dailySummary: { type: Boolean, default: false }, // Send daily summary emails
+    },
     
     // Audit
     lastLoginAt: { type: Date },
+
   },
   { timestamps: true }
 );

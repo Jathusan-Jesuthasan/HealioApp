@@ -1,6 +1,11 @@
 // backend/server.js
-import express from "express";
+
+// ----------------- Load Environment Variables First -----------------
 import dotenv from "dotenv";
+dotenv.config({ path: "./.env" }); // ✅ Must be the first line to ensure env vars load before anything else
+
+// ----------------- Core Imports -----------------
+import express from "express";
 import cors from "cors";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -13,7 +18,6 @@ import conversationRoutes from "./routes/conversationRoutes.js";
 import communityRoutes from "./routes/communityRoutes.js";
 import questionnaireRoutes from "./routes/questionnaireRoutes.js";
 import emotionRoutes from "./routes/emotionRoutes.js";
-import aiRoutes from "./routes/aiRoutes.js";
 import moodLogRoutes from "./routes/moodLogRoutes.js";
 import path from 'path';
 import fs from 'fs';
@@ -26,6 +30,15 @@ import chatRoutes from "./routes/chatRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
 import activityDashboardRoutes from "./routes/activityDashboardRoutes.js";
 import rewardsRoutes from "./routes/rewardsRoutes.js";
+
+// 🩺 Health & Root Routes
+import { scheduleDailySummary } from "./utils/dailySummary.js";
+
+// ----------------- Routes -----------------
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import trustedContactRoutes from "./routes/trustedContactRoutes.js";
 dotenv.config();
 const app = express();
 
@@ -55,10 +68,50 @@ const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 
-// 🩺 Health & Root Routes
+
+// ----------------- Validate Critical Environment Variables -----------------
+const REQUIRED_ENV = ["MONGO_URI", "JWT_SECRET", "OPENAI_API_KEY"];
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.warn(
+    `⚠️  Missing required environment variables: ${missing.join(", ")}`
+  );
+  console.warn("Please check your .env file before starting the server.");
+} else {
+  console.log("✅ Environment variables loaded successfully");
+}
+
+// ----------------- Connect MongoDB -----------------
+try {
+  await connectDB();
+  console.log("✅ MongoDB Connected Successfully");
+} catch (err) {
+  console.error("❌ MongoDB connection failed:", err.message);
+  process.exit(1);
+}
+
+// ----------------- Middleware -----------------
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: "*", // 🔒 You can restrict this later to your frontend domain
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
+
+// ----------------- Serve Static Files (for logo in emails) -----------------
+app.use('/public', express.static('public'));
+
+// ----------------- Health Check Routes -----------------
 app.get("/", (req, res) => res.send("✅ Healio API is running"));
 app.get("/health", (req, res) =>
-  res.json({ ok: true, time: new Date().toISOString() })
+  res.json({
+    ok: true,
+    mongoConnected: true,
+    openaiKeyLoaded: !!process.env.OPENAI_API_KEY,
+    time: new Date().toISOString(),
+  })
 );
 
 app.use("/api/moodlogs", moodLogRoutes);
@@ -110,3 +163,28 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () =>
   console.log(`✅ Server running on http://localhost:${PORT}`)
 );
+// ----------------- Mount API Routes -----------------
+app.use("/api/auth", authRoutes);
+app.use("/api/moodlogs", moodLogRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/trusted-contacts", trustedContactRoutes);
+
+// ----------------- Global Error Handler -----------------
+app.use((err, req, res, next) => {
+  console.error("🔥 Global Server Error:", err.stack || err);
+  res
+    .status(500)
+    .json({ message: "Internal Server Error", error: err.message || err });
+});
+
+// ----------------- Start Server -----------------
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Healio API Server running on: http://localhost:${PORT}`);
+  
+  // Start daily summary scheduler
+  scheduleDailySummary();
+  console.log('⏰ Daily summary scheduler is active');
+});

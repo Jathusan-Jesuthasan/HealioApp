@@ -1,9 +1,9 @@
 // /components/BottomBar.jsx
-import React from "react";
-import { View, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "../utils/Colors";
+import React from 'react';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../utils/Colors';
 
 /**
  * Rounded bottom bar with a floating '+' centered FAB.
@@ -19,18 +19,24 @@ export default function BottomBar({ state, descriptors, navigation }) {
 
   const iconFor = (name) => {
     switch (name) {
-      case "Dashboard": return "home-outline";
-      case "MoodLog":  return "happy-outline";
-      case "Trends":   return "analytics-outline";
-      case "Reports":  return "document-text-outline";
-      case "Settings": return "settings-outline";
-      default:         return "ellipse-outline";
+      case 'Dashboard':
+        return 'home-outline';
+      case 'MoodLog':
+        return 'happy-outline';
+      case 'Trends':
+        return 'analytics-outline';
+      case 'Reports':
+        return 'document-text-outline';
+      case 'Settings':
+        return 'settings-outline';
+      default:
+        return 'ellipse-outline';
     }
   };
 
   const onTabPress = (routeName, routeKey, isFocused) => () => {
     const event = navigation.emit({
-      type: "tabPress",
+      type: 'tabPress',
       target: routeKey,
       canPreventDefault: true,
     });
@@ -41,7 +47,7 @@ export default function BottomBar({ state, descriptors, navigation }) {
 
   const onTabLongPress = (routeKey) => () => {
     navigation.emit({
-      type: "tabLongPress",
+      type: 'tabLongPress',
       target: routeKey,
     });
   };
@@ -49,7 +55,6 @@ export default function BottomBar({ state, descriptors, navigation }) {
   // helper to render a single tab icon
   const TabIcon = ({ route, index }) => {
     const { options } = descriptors[route.key];
-    const label = options.tabBarLabel ?? options.title ?? route.name;
     const isFocused = state.index === index;
 
     return (
@@ -63,13 +68,8 @@ export default function BottomBar({ state, descriptors, navigation }) {
         onLongPress={onTabLongPress(route.key)}
         style={styles.tab}
         activeOpacity={0.9}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons
-          name={iconFor(route.name)}
-          size={22}
-          color={isFocused ? navActive : navIcon}
-        />
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ionicons name={iconFor(route.name)} size={22} color={isFocused ? navActive : navIcon} />
       </TouchableOpacity>
     );
   };
@@ -84,12 +84,11 @@ export default function BottomBar({ state, descriptors, navigation }) {
 
         {/* Floating center '+' */}
         <TouchableOpacity
-          onPress={() => navigation.navigate("MoodLog")}
+          onPress={() => navigation.navigate('MoodLog')}
           style={styles.fab}
           activeOpacity={0.9}
           accessibilityRole="button"
-          accessibilityLabel="Add mood"
-        >
+          accessibilityLabel="Add mood">
           <Ionicons name="add" size={26} color="#fff" />
         </TouchableOpacity>
 
@@ -105,7 +104,7 @@ export default function BottomBar({ state, descriptors, navigation }) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: "absolute",
+    position: 'absolute',
     left: 16,
     right: 16,
     bottom: 0,
@@ -114,12 +113,12 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 24,
     paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
 
     // subtle shadow
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -129,21 +128,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fab: {
-    position: "absolute",
-    alignSelf: "center",
+    position: 'absolute',
+    alignSelf: 'center',
     bottom: 22,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: Colors.accent, // green CTA
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
 
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },

@@ -1,11 +1,11 @@
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, Image } from "react-native";
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
 
 export default function WelcomeScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       // 👇 Move to Onboarding, not Login
-      navigation.replace("Onboarding1");
+      navigation.replace('Onboarding1');
     }, 2500);
     return () => clearTimeout(timer);
   }, [navigation]);
@@ -25,19 +25,19 @@ export default function WelcomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
-    width: 1000,   // ✅ smaller size for mobile
+    width: 1000, // ✅ smaller size for mobile
     height: 400,
     marginBottom: 16,
   },
   tagline: {
     marginTop: 8,
     fontSize: 16,
-    color: "#111827",
-    fontWeight: "500",
+    color: '#111827',
+    fontWeight: '500',
   },
 });

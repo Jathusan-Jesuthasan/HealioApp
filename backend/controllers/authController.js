@@ -170,3 +170,48 @@ export const clearUsers = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+// --------------------
+// Get Alert Settings
+// --------------------
+export const getAlertSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("alertSettings");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ success: true, data: user.alertSettings });
+  } catch (error) {
+    console.error("Get alert settings error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// --------------------
+// Update Alert Settings
+// --------------------
+export const updateAlertSettings = async (req, res) => {
+  try {
+    const { autoAlert, criticalOnly, dailySummary } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update only provided fields
+    if (typeof autoAlert !== 'undefined') user.alertSettings.autoAlert = autoAlert;
+    if (typeof criticalOnly !== 'undefined') user.alertSettings.criticalOnly = criticalOnly;
+    if (typeof dailySummary !== 'undefined') user.alertSettings.dailySummary = dailySummary;
+
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      message: "Alert settings updated successfully",
+      data: user.alertSettings 
+    });
+  } catch (error) {
+    console.error("Update alert settings error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
