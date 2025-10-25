@@ -18,12 +18,22 @@ import moodLogRoutes from "./routes/moodLogRoutes.js";
 import path from 'path';
 import fs from 'fs';
 
-
-
+// 🧩 Connect to MongoDB Atlas
+import journalRoutes from "./routes/journalRoutes.js";
+import goalRoutes from "./routes/goalRoutes.js";
+import meditationRoutes from "./routes/meditationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import activityRoutes from "./routes/activityRoutes.js";
+import activityDashboardRoutes from "./routes/activityDashboardRoutes.js";
+import rewardsRoutes from "./routes/rewardsRoutes.js";
 dotenv.config();
 const app = express();
 
-// 🧩 Connect to MongoDB Atlas
+app.get("/", (req, res) => {
+  res.send("✅ Healio backend is running");
+});
+
+// Connect DB (Atlas)
 await connectDB();
 
 // 🔍 Parse incoming JSON and form data
@@ -53,6 +63,18 @@ app.get("/health", (req, res) =>
 
 app.use("/api/moodlogs", moodLogRoutes);
 app.use("/api", emotionRoutes);
+// Routes
+app.use("/api/auth", authRoutes);
+app.use(express.json());
+app.use("/api/chat", chatRoutes);
+app.use("/api/journals", journalRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/meditations", meditationRoutes);
+app.use("/api/activity-dashboard", activityDashboardRoutes);
+app.use("/api/activities", activityRoutes);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use("/api/rewards", rewardsRoutes);
 
 // Hugging Face emotion analyzer
 app.use("/api", emotionRoutes); // -> /api/analyze-emotion

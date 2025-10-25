@@ -1,36 +1,15 @@
-// /navigation/AppNavigator.jsx
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Colors } from "../utils/Colors";
 
-// Screens
 import DashboardScreen from "../screens/DashboardScreen";
 import MoodLogScreen from "../screens/MoodLogScreen";
-import BottomBar from "../components/BottomBar";
-// frontend/navigation/AppNavigator.jsx
-import React, { lazy, Suspense } from "react";
-import { ActivityIndicator } from "react-native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import BottomNavBar from "../components/BottomNavBar";
-import DashboardScreen from "../screens/DashboardScreen";
-import MoodLogScreen from "../screens/MoodLogScreen";
+import ChatbotScreen from "../screens/ChatbotScreen";
+import ProfileScreen from "../screens/ProfileScreen";
+import ActivityStack from "./ActivityStack"; // ✅ use stack instead of ActivityScreen
+import ActivityDashboardScreen from "../screens/ActivityDashboardScreen";
 
-const ProfileScreen = lazy(() => import("../screens/User_Profile/ProfileScreen"));
-const PersonalInfoScreen = lazy(() => import("../screens/User_Profile/PersonalInfoScreen"));
-const NotificationsScreen = lazy(() => import("../screens/User_Profile/NotificationsScreen"));
-const LanguageScreen = lazy(() => import("../screens/User_Profile/LanguageScreen"));
-const ThemeScreen = lazy(() => import("../screens/User_Profile/ThemeScreen"));
-const RoleManagementScreen = lazy(() => import("../screens/User_Profile/RoleManagementScreen"));
-const LogoutScreen = lazy(() => import("../screens/User_Profile/LogoutScreen"));
-const MessagesScreen = lazy(() => import("../screens/Trusted_Contact/MessagesScreen"));
-const CommunityHubScreen = lazy(() => import("../screens/Youth_Trusted/CommunityHubScreen"));
-const TrustedDashboardScreen = lazy(() => import("../screens/Trusted_Contact/TrustedDashboardScreen"));
-const TrustedContactsScreen = lazy(() => import("../screens/Trusted_Contact/TrustedContactsScreen"));
-const AddTrustedContact = lazy(() => import("../screens/Trusted_Contact/AddTrustedContact"));
-const InviteTrustedContactScreen = lazy(() => import("../screens/Youth_User/InviteTrustedContactScreen"));
-const EmergencyContactScreen = lazy(() => import("../screens/Youth_User/EmergencyContactScreen"));
-const SOSScreen = lazy(() => import("../screens/Youth_User/SOSScreen"));
-const HelpCenterScreen = lazy(() => import("../screens/User_Profile/HelpCenterScreen"));
-const KnowledgeHubScreen = lazy(() => import("../screens/Youth_Trusted/KnowledgeHubScreen"));
+import BottomNavBar from "../components/BottomNavBar";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -78,14 +57,13 @@ export default function AppNavigator() {
         tabBarActiveTintColor: Colors.navActive ?? Colors.secondary,
         tabBarInactiveTintColor: Colors.navIcon ?? Colors.textSecondary,
       }}
-      // Use custom bottom bar (rounded + center FAB)
-      tabBar={(props) => <BottomBar {...props} />}
+      tabBar={(props) => <BottomNavBar {...props} />}
     >
       <Tab.Screen name="Home" component={DashboardScreen} />
-      <Tab.Screen name="Chat" component={MessagesScreen} />
+      <Tab.Screen name="Chat" component={ChatbotScreen} />
       <Tab.Screen name="MoodLog" component={MoodLogScreen} />
-      <Tab.Screen name="Activity" component={TrustedDashboardScreen} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+      <Tab.Screen name="Activity" component={ActivityStack} /> {/* ✅ FIXED */}
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }

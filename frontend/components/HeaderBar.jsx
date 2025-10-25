@@ -27,16 +27,22 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
   const { user, userRole, setUserRole } = useContext(AuthContext);
   const slide = useRef(new Animated.Value(-24)).current;
   const fade = useRef(new Animated.Value(0)).current;
+    const bellBounce = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const backPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slide, { toValue: 0, duration: 550, useNativeDriver: false }),
-      Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: false }),
+      Animated.timing(slide, { toValue: 0, duration: 550, useNativeDriver: true }),
+      Animated.timing(fade, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
 
-    // notifications/chat animation removed
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bellBounce, { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.timing(bellBounce, { toValue: 0, duration: 450, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
   useEffect(() => {
@@ -50,6 +56,7 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
     }
   }, [unreadCount]);
 
+  const bellScale = bellBounce.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const badgeScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
   const backScale = backPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
 
