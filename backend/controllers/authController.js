@@ -1,150 +1,172 @@
 // backend/controllers/authController.js
-import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 import { sendEmail } from "../utils/sendEmail.js";
 
-// --------------------
-// Token Generator
-// --------------------
-const generateToken = (id, expiresIn = "30d") => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
-};
+const generateToken = (id, expiresIn = "30d") =>
+  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
 
-// --------------------
-// Register User
-// --------------------
+// POST /api/auth/register
 export const registerUser = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+    const { name, email, password, role = "Youth" } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
     }
 
-    const user = await User.create({ email, password });
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "User already exists" });
 
-    if (user) {
-      res.status(201).json({
-        _id: user._id,
-        email: user.email,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(400).json({ message: "Invalid user data" });
-    }
-  } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({ message: error.message });
+    const user = await User.create({ name, email, password, role });
+    return res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// --------------------
-// Login User
-// --------------------
+// POST /api/auth/login
 export const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-
   try {
+    const { email, password } = req.body || {};
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-      res.json({
+      return res.json({
         _id: user._id,
+        name: user.name,
         email: user.email,
+        role: user.role,
         token: generateToken(user._id),
       });
-    } else {
-      res.status(401).json({ message: "Invalid email or password" });
     }
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: error.message });
+    return res.status(401).json({ message: "Invalid email or password" });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// --------------------
-// Get Profile (Protected)
-// --------------------
-export const getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user).select("-password");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.json(user);
-  } catch (error) {
-    console.error("Get profile error:", error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// --------------------
-// Forgot Password
-// --------------------
+// POST /api/auth/forgot-password
 export const forgotPassword = async (req, res) => {
-  const { email } = req.body;
-
   try {
+    const { email } = req.body || {};
     const user = await User.findOne({ email });
+
+    // always respond generic
     if (!user) {
-      // Always return generic message for security
-      return res.json({
-        message: "If that email exists, a reset link has been sent.",
-      });
+      return res.json({ message: "If that email exists, a reset link has been sent." });
     }
 
-    // Create short-lived reset token (15 minutes)
     const token = generateToken(user._id, "15m");
-    const resetURL = `${process.env.CLIENT_URL}/reset-password/${token}`;
-
-    const html = `
-      <h2>Reset your Healio password</h2>
-      <p>Click below to reset your password (valid for 15 minutes):</p>
-      <a href="${resetURL}">${resetURL}</a>
-    `;
+    const resetURL = `${process.env.CLIENT_URL || "http://localhost:3000"}/reset-password/${token}`;
 
     await sendEmail({
       to: email,
       subject: "Healio Password Reset",
-      html,
+      html: `
+        <h2>Reset your Healio password</h2>
+        <p>Click below to reset your password (valid for 15 minutes):</p>
+        <a href="${resetURL}">${resetURL}</a>
+      `,
     });
 
-    res.json({
-      message: "If that email exists, a reset link has been sent.",
-    });
-  } catch (error) {
-    console.error("Forgot password error:", error);
-    res.status(500).json({ message: error.message });
+    return res.json({ message: "If that email exists, a reset link has been sent." });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-// --------------------
-// Reset Password
-// --------------------
+// POST /api/auth/reset-password
 export const resetPassword = async (req, res) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res
-      .status(400)
-      .json({ message: "Token and newPassword are required" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    const { token, newPassword } = req.body || {};
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token and newPassword are required" });
     }
 
-    user.password = newPassword; // hashed via pre-save hook
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.password = newPassword; // pre-save hook will hash
     await user.save();
 
-    res.json({ message: "Password updated successfully" });
-  } catch (error) {
-    console.error("Reset password error:", error);
+    return res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
     res.status(400).json({ message: "Invalid or expired token" });
+  }
+};
+
+// POST /api/auth/google
+export const googleAuth = async (req, res) => {
+  try {
+    const { googleId, email, name, avatarUrl, role = "Youth" } = req.body;
+
+    if (!googleId || !email || !name) {
+      return res.status(400).json({ message: "Google ID, email, and name are required" });
+    }
+
+    // Check if user exists by Google ID or email
+    let user = await User.findOne({ 
+      $or: [{ googleId }, { email }] 
+    });
+
+    if (user) {
+      // Update existing user with Google info
+      user.googleId = googleId;
+      user.avatarUrl = avatarUrl;
+      user.name = name;
+      user.emailVerified = true;
+      user.lastLoginAt = new Date();
+      await user.save();
+    } else {
+      // Create new user
+      user = await User.create({
+        googleId,
+        email,
+        name,
+        avatarUrl,
+        role,
+        emailVerified: true,
+        lastLoginAt: new Date()
+      });
+    }
+
+    return res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      token: generateToken(user._id),
+    });
+  } catch (err) {
+    console.error("Google auth error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// DELETE /api/auth/clear-users (Development only)
+export const clearUsers = async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ message: "Not allowed in production" });
+    }
+    
+    await User.deleteMany({});
+    res.json({ message: "All users cleared successfully" });
+  } catch (err) {
+    console.error("Clear users error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

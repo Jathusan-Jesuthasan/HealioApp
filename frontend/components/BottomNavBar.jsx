@@ -1,4 +1,3 @@
-// frontend/components/BottomNavBar.js
 import React, { useEffect } from "react";
 import {
   View,
@@ -20,7 +19,9 @@ const { width } = Dimensions.get("window");
 
 export default function BottomNavBar({ state, navigation }) {
   const handlePress = (routeName) => {
-    navigation.navigate(routeName);
+    if (routeName !== state.routeNames[state.index]) {
+      navigation.navigate(routeName);
+    }
   };
 
   return (
@@ -28,31 +29,31 @@ export default function BottomNavBar({ state, navigation }) {
       {/* Home */}
       <TabIcon
         icon={<Ionicons name="home" size={26} />}
-        active={state.index === 0}
+        active={state.routeNames[state.index] === "Home"}
         onPress={() => handlePress("Home")}
       />
 
       {/* Chat */}
       <TabIcon
         icon={<Feather name="message-circle" size={26} />}
-        active={state.index === 1}
+        active={state.routeNames[state.index] === "Chat"}
         onPress={() => handlePress("Chat")}
       />
 
-      {/* Floating Mood Log Button with Glow */}
+      {/* Floating Mood Log Button */}
       <MoodFab onPress={() => handlePress("MoodLog")} />
 
       {/* Activity */}
       <TabIcon
         icon={<Feather name="bar-chart-2" size={26} />}
-        active={state.index === 2}
+        active={state.routeNames[state.index] === "Activity"}
         onPress={() => handlePress("Activity")}
       />
 
       {/* Profile */}
       <TabIcon
         icon={<Feather name="user" size={26} />}
-        active={state.index === 3}
+        active={state.routeNames[state.index] === "Profile"}
         onPress={() => handlePress("Profile")}
       />
     </View>
@@ -87,16 +88,12 @@ function MoodFab({ onPress }) {
   const pulse = useSharedValue(1);
 
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1.6, { duration: 1500 }),
-      -1, // infinite
-      true
-    );
+    pulse.value = withRepeat(withTiming(1.6, { duration: 1500 }), -1, true);
   }, []);
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
-    opacity: 2 - pulse.value, // fade as it grows
+    opacity: 2 - pulse.value,
   }));
 
   return (
@@ -143,7 +140,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#10B98155", // semi-transparent green glow
+    backgroundColor: "#10B98155",
   },
   fabButton: {
     backgroundColor: "#10B981",
@@ -157,12 +154,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: {
-        shadowOffset: { width: 0, height: 6 },
-      },
+      ios: { shadowOffset: { width: 0, height: 4 } },
+      android: { shadowOffset: { width: 0, height: 6 } },
     }),
   },
 });

@@ -1,7 +1,9 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "healioapp",
+    "slug": "healioapp",
+    "owner": "Saayinath",
+    "scheme": "healioapp",
     "version": "1.0.0",
     "web": {
       "favicon": "./assets/favicon.png"
@@ -9,7 +11,9 @@
     "experiments": {
       "tsconfigPaths": true
     },
-    "plugins": [],
+    "plugins": [
+      "expo-web-browser"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +33,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.frontend"
+      "package": "com.saayinath.healioapp"
     }
   }
 }
