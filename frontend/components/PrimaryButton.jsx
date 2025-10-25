@@ -1,16 +1,19 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { Pressable, Text, StyleSheet } from "react-native";
 import { Colors } from "../utils/Colors";
 
 const PrimaryButton = ({ title, onPress, style, textStyle }) => {
   return (
-    <TouchableOpacity
-      style={[styles.button, style]}
-      activeOpacity={0.8}
+    <Pressable
+      style={({ pressed }) => [
+        styles.button,
+        style,
+        pressed && styles.pressed
+      ]}
       onPress={onPress}
     >
       <Text style={[styles.text, textStyle]}>{title}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -32,6 +35,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: 0.5,
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });
 

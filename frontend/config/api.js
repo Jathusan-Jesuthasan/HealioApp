@@ -1,49 +1,41 @@
-// frontend/src/config/api.js
+// frontend/config/api.js
 import axios from "axios";
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 
-/**
- * Picks the right base URL:
- * - Android emulator -> http://10.0.2.2:5000
- * - Physical device (Expo Go) -> http://<your-computer-LAN-ip>:5000
- * - iOS simulator -> http://localhost:5000
- */
-function guessBaseURL() {
-  // Android emulator special alias for host machine
-  if (Platform.OS === "android") return "http://10.0.2.2:5000";
+const getBaseURL = () => {
+  // 1️⃣ Try environment variable first (optional)
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
 
-  // Try to infer LAN IP from Expo hostUri (for physical devices)
-  const hostUri =
-    Constants?.expoConfig?.hostUri ||
-    Constants?.manifest2?.extra?.expoClient?.hostUri ||
-    Constants?.manifest?.hostUri;
+  // 2️⃣ Platform-specific detection
+  if (Platform.OS === "android") return "http://10.0.2.2:5000";       // Android emulator
+  if (Platform.OS === "ios") return "http://127.0.0.1:5000";          // iOS simulator
 
-  if (hostUri && hostUri.includes(":")) {
-    const host = hostUri.split(":")[0]; // e.g., "192.168.1.23"
-    return `http://${host}:5000`;
-  }
+  // 3️⃣ Web (running in browser on same machine) — use localhost by default
+  if (Platform.OS === "web") return "http://localhost:5000";
 
-  // Fallbacks
-  return Platform.OS === "ios" ? "http://localhost:5000" : "http://10.0.2.2:5000";
-}
+  // 3️⃣ Web / physical device — replace with your machine's LAN IP when testing on a phone.
+  // Using the IP you pasted from ipconfig (Wi-Fi): 192.168.1.5
+  return "http://192.168.1.5:5000";  // 🔄 Your machine's IPv4 address for device testing
+};
 
-const BASE_URL = guessBaseURL();
+export const BASE_URL = getBaseURL();
+console.log("🌐 Using API base URL:", BASE_URL);
 
-const API = axios.create({
+const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 20000,
   headers: { "Content-Type": "application/json" },
-  timeout: 15000,
 });
 
-// Optional: helpful logging
-API.interceptors.response.use(
+// Optional: auto-log errors for easier debugging
+api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const url = `${err?.config?.baseURL || ""}${err?.config?.url || ""}`;
-    console.log("API error:", err?.message, "->", url);
-    throw err;
+    if (err.code === "ECONNABORTED") console.warn("⏱️ API Timeout:", err.config.url);
+    else if (err.message.includes("Network Error"))
+      console.warn("🌐 Network Error – check backend/IP");
+    return Promise.reject(err);
   }
 );
 
-export default API;
+export default api;
