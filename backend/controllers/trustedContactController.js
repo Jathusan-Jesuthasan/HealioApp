@@ -132,21 +132,34 @@ export const sendRiskAlert = async (req, res) => {
   try {
     const { riskResultId } = req.body;
 
-    // Fetch the risk result
-    const riskResult = await AIRiskResult.findOne({
-      _id: riskResultId,
-      user: req.user._id,
-    }).populate("user", "name email");
+    // Allow optional riskResultId; if missing, fallback to most recent high-risk result
+    const highRiskLevels = ["SERIOUS", "STRESS", "ANGER", "ANXIETY"];
+    let riskResult = null;
+    if (riskResultId) {
+      riskResult = await AIRiskResult.findOne({
+        _id: riskResultId,
+        user: req.user._id,
+      }).populate("user", "name email");
+    }
+
+    if (!riskResult) {
+      riskResult = await AIRiskResult.findOne({
+        user: req.user._id,
+        riskLevel: { $in: highRiskLevels },
+      })
+        .sort({ date: -1 })
+        .populate("user", "name email");
+    }
 
     if (!riskResult) {
       return res.status(404).json({
         success: false,
-        message: "Risk result not found",
+        message:
+          "No suitable high-risk result found. Provide a riskResultId or ensure a recent high-risk analysis exists.",
       });
     }
 
     // Check if risk level is high enough to send alert
-    const highRiskLevels = ["SERIOUS", "STRESS", "ANGER", "ANXIETY"];
     if (!highRiskLevels.includes(riskResult.riskLevel)) {
       return res.status(400).json({
         success: false,
@@ -195,6 +208,69 @@ export const sendRiskAlert = async (req, res) => {
     });
   } catch (error) {
     console.error("Error sending risk alert:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+/**
+ * Send a TEST alert to trusted contacts using a mock high-risk payload
+ */
+export const sendTestAlert = async (req, res) => {
+  try {
+    // Get all trusted contacts
+    const contacts = await TrustedContact.find({ user: req.user._id });
+
+    if (contacts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No trusted contacts found",
+      });
+    }
+
+    // Create a lightweight mock risk result
+    const mockRiskResult = {
+      riskLevel: "STRESS",
+      wellnessIndex: 45,
+      date: new Date(),
+      summary:
+        "This is a test alert to verify your trusted contact notifications are working.",
+      suggestions: [
+        "Reach out with a supportive message",
+        "Encourage a short walk or breathing exercise",
+      ],
+      user: { name: req.user.name, email: req.user.email },
+    };
+
+    const emailPromises = contacts
+      .filter((contact) => contact.notifyVia.includes("email"))
+      .map((contact) => {
+        const emailHTML = generateRiskAlertEmail(
+          req.user.name,
+          contact.name,
+          mockRiskResult
+        );
+
+        return sendAlertEmail({
+          toEmail: contact.email,
+          toName: contact.name,
+          subject: `\u26A0\uFE0F Test Alert - ${req.user.name} (Healio)`,
+          htmlContent: emailHTML,
+          textContent:
+            "This is a test alert from Healio to confirm your trusted contact notifications.",
+        }).catch((err) => {
+          console.error(`Failed to send test email to ${contact.email}:`, err);
+          return null;
+        });
+      });
+
+    await Promise.all(emailPromises);
+
+    res.json({
+      success: true,
+      message: `Test alert sent to ${contacts.length} trusted contact(s)`
+    });
+  } catch (error) {
+    console.error("Error sending test alert:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };

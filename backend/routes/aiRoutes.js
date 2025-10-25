@@ -64,6 +64,60 @@ Each log includes:
 `;
 
 /* -------------------------------------------------------------------------- */
+/* 🛟 Last-resort heuristic fallback                                         */
+/* -------------------------------------------------------------------------- */
+function heuristicAnalyze(moodLogs = []) {
+  // Map moods to simple scores (0-100)
+  const moodScoreMap = {
+    Happy: 90,
+    Neutral: 60,
+    Tired: 45,
+    Sad: 30,
+    Angry: 25,
+  };
+
+  const scores = moodLogs.map((l) => moodScoreMap[l.mood] ?? 60);
+  const mindBalanceScore = scores.length
+    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+    : 60;
+
+  // Weekly moods as 1–5 scale for a mini chart (use latest 7 logs)
+  const toStars = (s) => Math.max(1, Math.min(5, Math.round(s / 20)));
+  const weeklyMoods = scores.slice(0, 7).map(toStars);
+
+  // Naive risk detection
+  const negatives = moodLogs.filter((l) => ["Sad", "Angry", "Tired"].includes(l.mood)).length;
+  const ratio = scores.length ? negatives / scores.length : 0;
+  let riskCategory = "Stable";
+  let riskScore = Math.round(ratio * 100);
+  if (ratio > 0.6) riskCategory = "Depression";
+  else if (ratio > 0.4) riskCategory = "Anxiety";
+  else if (ratio > 0.25) riskCategory = "Stress";
+
+  const suggestion =
+    riskCategory === "Stable"
+      ? "Nice consistency. Keep up your routines and celebrate the small wins."
+      : "Try a quick walk, hydrate, and message a friend. Small actions help reset your day.";
+
+  return {
+    mindBalanceScore,
+    progressMilestone: Math.min(1, Math.max(0, +(scores.length / 30).toFixed(2))),
+    weeklyMoods: weeklyMoods.length ? weeklyMoods : [toStars(mindBalanceScore)],
+    risks: [
+      {
+        category: riskCategory,
+        score: riskScore,
+        message:
+          riskCategory === "Stable"
+            ? "Overall patterns look steady with balanced moods."
+            : "Recent entries show elevated low-energy or tense moods.",
+      },
+    ],
+    suggestion,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* ✅ Route: Get AI Analysis History                                          */
 /* -------------------------------------------------------------------------- */
 router.get("/risk-history", protect, async (req, res) => {
@@ -138,7 +192,10 @@ router.post("/risk-analysis", protect, async (req, res) => {
         console.log("✅ Gemini fallback response successful");
       } catch (gErr) {
         console.error("❌ Gemini also failed:", gErr.message || gErr);
-        throw new Error("Both AI models failed to generate a response");
+        // 🛟 Last resort: heuristic analysis so the app does not hard-fail
+        aiSource = "Heuristic";
+        aiOutput = heuristicAnalyze(moodLogs);
+        console.warn("🛟 Falling back to heuristic analysis output.");
       }
     }
 

@@ -197,11 +197,14 @@ export const sendDailySummaries = async () => {
         let sentCount = 0;
         for (const contact of contacts) {
           try {
-            await sendAlertEmail(
-              contact.email, 
-              `Daily Mental Health Summary - ${user.email}`, 
-              summaryHTML
-            );
+            await sendAlertEmail({
+              toEmail: contact.email,
+              toName: contact.name || 'Trusted Contact',
+              subject: `Daily Mental Health Summary - ${user.email}`,
+              htmlContent: summaryHTML,
+              textContent:
+                'This is a daily summary email from Healio. Please view this email in an HTML-capable client to see the full summary.',
+            });
             sentCount++;
             console.log(`📧 Sent daily summary to ${contact.email} for user ${user.email}`);
           } catch (emailError) {

@@ -14,7 +14,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../config/api';
-import { Colors } from '../utils/Colors';
+// Local theme for this screen (do not change global Colors)
+const THEME = {
+  primary: '#F5F7FA', // background
+  secondary: '#4A90E2', // main action color
+  accent: '#103981', // dark accent
+};
 
 export default function TrustedRiskAlert({ navigation }) {
   const [isActive, setIsActive] = useState(false);
@@ -228,15 +233,45 @@ export default function TrustedRiskAlert({ navigation }) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Send',
-          onPress: () => {
-            Alert.alert(
-              'Test Alert Sent',
-              'Your trusted contacts will receive a test notification.'
-            );
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('userToken');
+              await API.post(
+                '/api/trusted-contacts/send-test-alert',
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              Alert.alert('Test Alert Sent', 'Your trusted contacts were emailed a test alert.');
+            } catch (e) {
+              console.error('Error sending test alert:', e);
+              Alert.alert('Error', e.response?.data?.message || 'Failed to send test alert');
+            }
           },
         },
       ]
     );
+  };
+
+  const handleSendDailySummaryNow = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        Alert.alert('Error', 'Please log in again');
+        return;
+      }
+      setLoading(true);
+      const res = await API.post(
+        '/api/trusted-contacts/test-daily-summary',
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      Alert.alert('Daily Summary', res.data?.message || 'Daily summary sent successfully!');
+    } catch (e) {
+      console.error('Error sending daily summary:', e);
+      Alert.alert('Error', e.response?.data?.message || 'Failed to send daily summary');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleToggleActive = async (value) => {
@@ -252,7 +287,7 @@ export default function TrustedRiskAlert({ navigation }) {
   if (loading && trustedContacts.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={THEME.secondary} />
         <Text style={styles.loadingText}>Loading trusted contacts...</Text>
       </View>
     );
@@ -263,7 +298,7 @@ export default function TrustedRiskAlert({ navigation }) {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.header}>
-        <Ionicons name="shield-checkmark" size={48} color={Colors.primary} />
+        <Ionicons name="shield-checkmark" size={48} color={THEME.accent} />
         <Text style={styles.title}>Trusted Person Alert</Text>
         <Text style={styles.subtitle}>
           Setup trusted contacts who will receive alerts if concerning patterns are detected in
@@ -283,7 +318,7 @@ export default function TrustedRiskAlert({ navigation }) {
           <Switch
             value={isActive}
             onValueChange={handleToggleActive}
-            trackColor={{ false: '#D1D5DB', true: Colors.primary }}
+            trackColor={{ false: '#D1D5DB', true: THEME.secondary }}
             thumbColor={isActive ? '#fff' : '#f4f3f4'}
           />
         </View>
@@ -296,7 +331,7 @@ export default function TrustedRiskAlert({ navigation }) {
           {trustedContacts.map((contact, index) => (
             <View key={contact._id} style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Ionicons name="person" size={24} color={Colors.primary} />
+                <Ionicons name="person" size={24} color={THEME.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.contactName}>{contact.name}</Text>
@@ -308,7 +343,7 @@ export default function TrustedRiskAlert({ navigation }) {
                 <TouchableOpacity
                   style={styles.iconButton}
                   onPress={() => handleEdit(contact)}>
-                  <Ionicons name="pencil" size={20} color={Colors.primary} />
+                  <Ionicons name="pencil" size={20} color={THEME.accent} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconButton}
@@ -407,7 +442,7 @@ export default function TrustedRiskAlert({ navigation }) {
               <Switch
                 value={alertSettings.autoAlert}
                 onValueChange={(val) => handleAlertSettingChange('autoAlert', val)}
-                trackColor={{ false: '#D1D5DB', true: Colors.primary }}
+                trackColor={{ false: '#D1D5DB', true: THEME.secondary }}
               />
             </View>
 
@@ -419,7 +454,7 @@ export default function TrustedRiskAlert({ navigation }) {
               <Switch
                 value={alertSettings.criticalOnly}
                 onValueChange={(val) => handleAlertSettingChange('criticalOnly', val)}
-                trackColor={{ false: '#D1D5DB', true: Colors.primary }}
+                trackColor={{ false: '#D1D5DB', true: THEME.secondary }}
               />
             </View>
 
@@ -431,7 +466,7 @@ export default function TrustedRiskAlert({ navigation }) {
               <Switch
                 value={alertSettings.dailySummary}
                 onValueChange={(val) => handleAlertSettingChange('dailySummary', val)}
-                trackColor={{ false: '#D1D5DB', true: Colors.primary }}
+                trackColor={{ false: '#D1D5DB', true: THEME.secondary }}
               />
             </View>
           </View>
@@ -439,8 +474,12 @@ export default function TrustedRiskAlert({ navigation }) {
           {/* Test Alert Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.testButton} onPress={handleTestAlert}>
-              <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+              <Ionicons name="notifications-outline" size={20} color={THEME.secondary} />
               <Text style={styles.testButtonText}>Send Test Alert</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.testButton} onPress={handleSendDailySummaryNow}>
+              <Ionicons name="mail-outline" size={20} color={THEME.secondary} />
+              <Text style={styles.testButtonText}>Send Daily Summary Now</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -448,7 +487,7 @@ export default function TrustedRiskAlert({ navigation }) {
 
       {/* Info Card */}
       <View style={[styles.card, styles.infoCard]}>
-        <Ionicons name="information-circle" size={24} color={Colors.primary} />
+        <Ionicons name="information-circle" size={24} color={THEME.accent} />
         <Text style={styles.infoText}>
           Your trusted contacts will receive automatic email alerts when our AI detects concerning
           patterns (SERIOUS, STRESS, ANGER, ANXIETY risk levels). Your personal mood logs and
@@ -462,7 +501,7 @@ export default function TrustedRiskAlert({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FB',
+    backgroundColor: THEME.primary,
   },
   centerContent: {
     justifyContent: 'center',
@@ -532,7 +571,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E9F2FD',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -593,7 +632,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: THEME.secondary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -633,7 +672,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: THEME.secondary,
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
@@ -641,12 +680,12 @@ const styles = StyleSheet.create({
   testButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.primary,
+    color: THEME.secondary,
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    borderColor: Colors.primary,
+    backgroundColor: '#E9F2FD',
+    borderColor: THEME.secondary,
     borderWidth: 1,
     gap: 12,
     marginBottom: 24,
@@ -654,7 +693,7 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#1E40AF',
+    color: THEME.accent,
     lineHeight: 18,
   },
 });

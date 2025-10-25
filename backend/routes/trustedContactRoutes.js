@@ -6,6 +6,7 @@ import {
   updateTrustedContact,
   deleteTrustedContact,
   sendRiskAlert,
+  sendTestAlert,
 } from "../controllers/trustedContactController.js";
 import { triggerDailySummaryNow } from "../utils/dailySummary.js";
 
@@ -31,6 +32,9 @@ router.delete("/:id", deleteTrustedContact);
 
 // POST /api/trusted-contacts/send-alert - Send risk alert to all trusted contacts
 router.post("/send-alert", sendRiskAlert);
+
+// POST /api/trusted-contacts/send-test-alert - Send a mock test alert to all trusted contacts
+router.post("/send-test-alert", sendTestAlert);
 
 // POST /api/trusted-contacts/test-daily-summary - Test daily summary (manual trigger)
 router.post("/test-daily-summary", async (req, res) => {
