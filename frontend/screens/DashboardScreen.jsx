@@ -26,11 +26,6 @@ const DashboardScreen = () => {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.header}>🩺 Healio Dashboard</Text>
-      <Text style={styles.subHeader}>
-        Your personalized mental wellness insights
-      </Text>
-
       {/* Mind Balance Score */}
       <Card>
         <Text style={styles.title}>⚖️ Mind Balance Score</Text>
