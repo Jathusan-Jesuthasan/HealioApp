@@ -4,6 +4,11 @@
 // backend/routes/trustedContactRoutes.js
 import express from "express";
 import {
+  listRegisteredUsers,
+  createTrustedRequest,
+  getOutgoingTrustedRequests,
+  getIncomingTrustedRequests,
+  respondToTrustedRequest,
   getTrustedContacts,
   addTrustedContact,
   updateTrustedContact,
@@ -23,6 +28,15 @@ const router = express.Router();
 
 // All routes require authentication
 router.use(protect);
+
+// Directory of registered users (for youth to discover trusted persons)
+router.get("/users", listRegisteredUsers);
+
+// Trusted-person request workflow
+router.get("/requests/outgoing", getOutgoingTrustedRequests);
+router.get("/requests/incoming", getIncomingTrustedRequests);
+router.post("/requests", createTrustedRequest);
+router.patch("/requests/:id", respondToTrustedRequest);
 
 // GET /api/trusted-contacts - Get all trusted contacts
 router.get("/", getTrustedContacts);

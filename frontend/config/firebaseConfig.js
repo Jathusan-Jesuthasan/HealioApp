@@ -6,16 +6,16 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { getDatabase, ref, onValue, set } from "firebase/database";
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from "firebase/firestore";
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: "AIzaSyA1gJx67UkCQin2SkmhcKpumeZTa140hCE",
   authDomain: "healio-4c32e.firebaseapp.com",
   projectId: "healio-4c32e",
-  storageBucket: "healioapp.appspot.com",
+  storageBucket: "healio-4c32e.firebasestorage.app",
   messagingSenderId: "462500880660",
-  appId: "1:462500880660:android:8fac52d481c03fa292a201",
+  appId: "1:462500880660:web:f993ff690a3cce7492a201",
   databaseURL: "https://healio-4c32e-default-rtdb.firebaseio.com",
   measurementId: "G-0D5YSNFQP9",
 };
@@ -33,7 +33,11 @@ const googleProvider = new GoogleAuthProvider();
 const db = getDatabase(app);
 
 // Firestore (for messaging, etc.)
-const firestore = getFirestore(app);
+const firestore = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
+});
 
 // --- Exports ---
 export { app, auth, googleProvider, db, firestore, ref, onValue, set };

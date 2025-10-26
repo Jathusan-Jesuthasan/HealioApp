@@ -186,3 +186,22 @@ export async function sendWeeklyReport() {
   const { data } = await api.post('/ai/send-report');
   return data; // expects { success, message }
 }
+
+// ✅ Trusted person: overview of linked youth
+export async function getTrustedYouthOverview(range = '30d') {
+  const { data } = await api.get('/trusted/dashboard', {
+    params: { range },
+  });
+  return data;
+}
+
+// ✅ Trusted person: detailed analytics for a specific youth
+export async function getTrustedYouthAnalytics(youthId, range = '30d') {
+  if (!youthId) {
+    throw new Error('Youth id is required');
+  }
+  const { data } = await api.get(`/trusted/analytics/${youthId}`, {
+    params: { range },
+  });
+  return data;
+}

@@ -50,7 +50,7 @@ export default function DevSettingsScreen({ navigation }) {
 
         <TextInput
           style={styles.input}
-          placeholder="sk-********************************"
+          placeholder="sk-proj-…"
           value={key}
           onChangeText={setKey}
           autoCapitalize="none"

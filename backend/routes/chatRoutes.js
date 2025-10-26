@@ -7,8 +7,11 @@ import {
   sendMessage,
   markRead,
 } from "../controllers/chatController.js";
+import ChatMessage from "../models/ChatMessage.js";
 
 const router = express.Router();
+
+router.use(protect);
 
 // Conversations
 router.get("/conversations", listConversations);
@@ -18,16 +21,13 @@ router.post("/conversations", startConversation);
 router.get("/conversations/:id/messages", getMessages);
 router.post("/conversations/:id/messages", sendMessage);
 router.post("/conversations/:id/read", markRead);
-import ChatMessage from "../models/ChatMessage.js";
-
-router.use(protect);
 
 
 // ➕ Add message (only logged-in user)
-router.post("/add", protect, async (req, res) => {
+router.post("/add", async (req, res) => {
   try {
-    const { role, text } = req.body;
-    const msg = new ChatMessage({ userId: req.user, role, text });
+  const { role, text } = req.body;
+  const msg = new ChatMessage({ userId: String(req.user._id), role, text });
     await msg.save();
     res.json({ success: true, message: "Message saved", data: msg });
   } catch (err) {
@@ -36,9 +36,9 @@ router.post("/add", protect, async (req, res) => {
 });
 
 // 📦 Get all messages for logged-in user
-router.get("/me", protect, async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
-    const messages = await ChatMessage.find({ userId: req.user }).sort({ createdAt: 1 });
+  const messages = await ChatMessage.find({ userId: String(req.user._id) }).sort({ createdAt: 1 });
     res.json({ success: true, data: messages });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -46,9 +46,9 @@ router.get("/me", protect, async (req, res) => {
 });
 
 // 🗑️ Clear chat for logged-in user
-router.delete("/me", protect, async (req, res) => {
+router.delete("/me", async (req, res) => {
   try {
-    await ChatMessage.deleteMany({ userId: req.user });
+  await ChatMessage.deleteMany({ userId: String(req.user._id) });
     res.json({ success: true, message: "Chat cleared" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

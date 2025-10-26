@@ -38,8 +38,8 @@ export default function TrustedBottomNavBar({ state, navigation }) {
       {/* Youth User Analytics */}
       <TabIcon
         icon={<Ionicons name="analytics" size={26} />}
-        active={state.routeNames[state.index] === "Analytics"}
-        onPress={() => handlePress("Analytics")}
+        active={state.routeNames[state.index] === "TrustedAnalytics"}
+        onPress={() => handlePress("TrustedAnalytics")}
         label="Analytics"
       />
 
@@ -52,13 +52,13 @@ export default function TrustedBottomNavBar({ state, navigation }) {
       />
 
       {/* Profile */}
-      {/* Community Hub */}
       <TabIcon
         icon={<Ionicons name="people" size={26} />}
         active={state.routeNames[state.index] === "Community"}
         onPress={() => handlePress("Community")}
         label="Community"
       />
+
     </View>
   );
 }

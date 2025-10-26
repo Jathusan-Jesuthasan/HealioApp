@@ -1,49 +1,86 @@
 import mongoose from "mongoose";
 
 const questionnaireSchema = new mongoose.Schema({
-  user: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "User", 
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
     required: true,
-    unique: true
+    unique: true,
   },
-  
+
   // Basic Demographics
-  age: { 
+  age: {
     type: Number,
     required: true,
     min: 13,
-    max: 120
+    max: 120,
   },
-  gender: { 
-    type: String, 
-    enum: ["Male", "Female", "Other", "Prefer not to say"],
-    required: true
+  gender: {
+    type: String,
+    enum: [
+      "Male",
+      "Female",
+      "Non-binary",
+      "Other",
+      "Prefer not to say",
+      "Prefer to self-describe",
+    ],
+    required: true,
   },
-  
+
   // Mental Health Assessment Questions
   stressLevel: {
     type: String,
-    enum: ["Very Low", "Low", "Moderate", "High", "Very High"],
-    required: true
+    enum: [
+      "Very Low",
+      "Low",
+      "Moderate",
+      "High",
+      "Very High",
+      "Relaxed",
+      "Mostly okay",
+      "Stressed",
+      "Overwhelmed",
+    ],
+    required: true,
   },
-  
+
   sleepQuality: {
     type: String,
-    enum: ["Excellent", "Good", "Fair", "Poor", "Very Poor"],
-    required: false
+    enum: [
+      "Excellent",
+      "Good",
+      "Fair",
+      "Poor",
+      "Very Poor",
+      "Rested",
+      "Light sleep",
+      "Restless",
+      "Exhausted",
+    ],
+    required: false,
   },
-  
+
   socialSupport: {
     type: String,
-    enum: ["Very Strong", "Strong", "Moderate", "Weak", "Very Weak"],
-    required: false
+    enum: [
+      "Very Strong",
+      "Strong",
+      "Moderate",
+      "Weak",
+      "Very Weak",
+      "Supported",
+      "Somewhat supported",
+      "Neutral",
+      "Isolated",
+    ],
+    required: false,
   },
-  
+
   academicPressure: {
     type: String,
-    enum: ["None", "Low", "Moderate", "High", "Extreme"],
-    required: false
+    enum: ["None", "Low", "Moderate", "High", "Extreme", "Overwhelming"],
+    required: false,
   },
   
   // Mental Health History
@@ -65,8 +102,20 @@ const questionnaireSchema = new mongoose.Schema({
   // Support Preferences
   preferredSupportType: {
     type: [String],
-    enum: ["Professional Counseling", "Peer Support", "Family Support", "Self-Help", "Emergency Contacts"],
-    default: []
+    enum: [
+      "Professional Counseling",
+      "Peer Support",
+      "Family Support",
+      "Self-Help",
+      "Emergency Contacts",
+      "Breathing exercises",
+      "Grounding techniques",
+      "Mood journaling",
+      "Talk to a mentor",
+      "Guided meditation",
+      "Peer stories",
+    ],
+    default: [],
   },
   
   // Emergency Contact Preferences
@@ -137,19 +186,27 @@ questionnaireSchema.methods.calculateRiskScore = function() {
   const stressScores = {
     "Very Low": 0,
     "Low": 5,
+    "Relaxed": 5,
+    "Mostly okay": 10,
     "Moderate": 10,
     "High": 15,
-    "Very High": 20
+    "Stressed": 15,
+    "Very High": 20,
+    "Overwhelmed": 20,
   };
   score += stressScores[this.stressLevel] || 0;
   
   // Sleep quality scoring (0-20 points)
   const sleepScores = {
     "Excellent": 0,
+    "Rested": 0,
     "Good": 5,
+    "Light sleep": 5,
     "Fair": 10,
     "Poor": 15,
-    "Very Poor": 20
+    "Restless": 15,
+    "Very Poor": 20,
+    "Exhausted": 20,
   };
   score += sleepScores[this.sleepQuality] || 0;
   
@@ -157,9 +214,13 @@ questionnaireSchema.methods.calculateRiskScore = function() {
   const supportScores = {
     "Very Strong": 0,
     "Strong": 5,
+    "Supported": 5,
     "Moderate": 10,
+    "Somewhat supported": 10,
+    "Neutral": 10,
     "Weak": 15,
-    "Very Weak": 20
+    "Very Weak": 20,
+    "Isolated": 20,
   };
   score += supportScores[this.socialSupport] || 0;
   
@@ -169,7 +230,8 @@ questionnaireSchema.methods.calculateRiskScore = function() {
     "Low": 5,
     "Moderate": 10,
     "High": 15,
-    "Extreme": 20
+    "Extreme": 20,
+    "Overwhelming": 20,
   };
   score += pressureScores[this.academicPressure] || 0;
   

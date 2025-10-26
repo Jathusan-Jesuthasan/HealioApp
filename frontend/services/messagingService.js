@@ -1,7 +1,5 @@
-import { getFirestore, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
-import { getApp } from 'firebase/app';
-
-const db = getFirestore(getApp());
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { firestore as db } from '../config/firebaseConfig';
 
 export const createMessage = async (conversationId, message) => {
   try {

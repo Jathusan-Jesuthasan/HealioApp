@@ -8,14 +8,11 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Keyboard,
-  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { chatWithLLM } from "../../services/llmClient";
 import api from "../../config/api";
 
-/* ---------------- constants ---------------- */
 const BG = "#F6F7FB";
 const BOT = "#EAF1FF";
 const USER = "#EAFBF2";
@@ -23,7 +20,6 @@ const FOOTER_HEIGHT = 64;
 const INPUT_MIN = 44;
 const INPUT_MAX = 120;
 
-/* ---------------- crisis keywords ---------------- */
 const crisisKeywords = [
   "suicide",
   "kill myself",
@@ -33,7 +29,6 @@ const crisisKeywords = [
   "self harm",
 ];
 
-/* ---------------- date label helper ---------------- */
 const dayLabel = (ts) => {
   const d = new Date(ts);
   const today = new Date();
@@ -48,19 +43,16 @@ const dayLabel = (ts) => {
 export default function ChatbotScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
-
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
   const [showHero, setShowHero] = useState(true);
   const [inputHeight, setInputHeight] = useState(INPUT_MIN);
-
-  const userId = "demo_user"; // replace with auth user later
+  const userId = "demo_user";
 
   const scrollToBottom = () =>
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
 
-  /* ---------- Load chat history ---------- */
   useEffect(() => {
     const loadChat = async () => {
       try {
@@ -90,23 +82,22 @@ export default function ChatbotScreen({ navigation }) {
         console.log("⚠️ Could not load chat:", err.message);
       }
     };
+
     loadChat();
   }, []);
 
-  /* ---------- Save message ---------- */
-  const saveMessageToDB = async (role, text) => {
+  const saveMessageToDB = async (role, value) => {
     try {
-      await api.post("/api/chat/add", { userId, role, text });
+      await api.post("/api/chat/add", { userId, role, text: value });
     } catch (err) {
       console.log("❌ Chat save failed:", err.message);
     }
   };
 
-  /* ---------- Add message locally + save ---------- */
-  const addMsg = (role, content) => {
-    const m = { id: String(Date.now() + Math.random()), role, text: content, ts: Date.now() };
+  const addMsg = (role, value) => {
+    const m = { id: String(Date.now() + Math.random()), role, text: value, ts: Date.now() };
     setMessages((prev) => [...prev, m]);
-    saveMessageToDB(role, content);
+    saveMessageToDB(role, value);
   };
 
   const addChips = (chips) =>
@@ -115,7 +106,6 @@ export default function ChatbotScreen({ navigation }) {
       { id: String(Date.now() + Math.random()), role: "chips", chips, ts: Date.now() },
     ]);
 
-  /* ---------- Handle send ---------- */
   const handleSend = async () => {
     const input = text.trim();
     if (!input) return;
@@ -127,7 +117,6 @@ export default function ChatbotScreen({ navigation }) {
     setTyping(true);
     scrollToBottom();
 
-    /* ---------- Crisis check ---------- */
     if (crisisKeywords.some((k) => input.toLowerCase().includes(k))) {
       addMsg(
         "bot",
@@ -135,10 +124,10 @@ export default function ChatbotScreen({ navigation }) {
       );
       addChips(["Call Helpline", "Talk to a Friend", "Relaxation Exercise"]);
       setTyping(false);
+      scrollToBottom();
       return;
     }
 
-    /* ---------- Prepare messages for LLM ---------- */
     const historyForLLM = messages
       .filter((m) => m.role === "user" || m.role === "bot")
       .slice(-10)
@@ -158,8 +147,26 @@ export default function ChatbotScreen({ navigation }) {
       { role: "user", content: input },
     ];
 
-    /* ---------- Get LLM reply ---------- */
-    const replyText = await chatWithLLM(llmMessages);
+    let replyText;
+    try {
+      replyText = await chatWithLLM(llmMessages);
+    } catch (err) {
+      console.log("LLM reply failed:", err?.message || err);
+      const isMissingKey = err?.code === "missing-api-key";
+      const fallback = isMissingKey
+        ? "I need an OpenAI API key before I can chat. Please open Developer Settings and add one."
+        : "I couldn't reach the AI just now. Let's retry in a moment.";
+      addMsg("bot", fallback);
+      addChips(
+        isMissingKey
+          ? ["Open Dev Settings", "Start Meditation", "Open Journal"]
+          : ["Start Meditation", "Open Journal", "Set a Goal"]
+      );
+      setTyping(false);
+      scrollToBottom();
+      return;
+    }
+
     addMsg(
       "bot",
       replyText ||
@@ -170,7 +177,6 @@ export default function ChatbotScreen({ navigation }) {
     scrollToBottom();
   };
 
-  /* ---------- Quick action chips ---------- */
   const onTapChip = (chip) => {
     const map = {
       "Start Meditation": () => navigation.navigate("Meditation"),
@@ -181,12 +187,19 @@ export default function ChatbotScreen({ navigation }) {
       "Set a Goal": () => navigation.navigate("GoalSetup"),
       "View Progress": () => navigation.navigate("Progress"),
       "Call a Friend": () => addMsg("bot", "Consider reaching someone you trust. You matter 💛"),
+      "Open Dev Settings": () => {
+        try {
+          navigation.navigate("DevSettings");
+        } catch (err) {
+          addMsg("bot", "Open Developer Settings from the menu to add your OpenAI key.");
+        }
+      },
     };
+
     (map[chip] || (() => addMsg("bot", "On it!")))();
     scrollToBottom();
   };
 
-  /* ---------- Group messages by date ---------- */
   const sections = [];
   let lastLabel = "";
   messages.forEach((m) => {
@@ -198,10 +211,8 @@ export default function ChatbotScreen({ navigation }) {
     sections.push({ type: "msg", ...m });
   });
 
-  /* ---------- UI ---------- */
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.headerCard}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Image source={require("../../assets/robo4.jpg")} style={styles.avatar} />
@@ -209,7 +220,6 @@ export default function ChatbotScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Chat Area */}
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollRef}
@@ -258,7 +268,6 @@ export default function ChatbotScreen({ navigation }) {
           )}
         </ScrollView>
 
-        {/* Input Bar */}
         <View style={[styles.inputBarContainer, { paddingBottom: insets.bottom + 70 }]}>
           <View style={styles.inputBar}>
             <TouchableOpacity style={styles.addBtn} activeOpacity={0.6}>
@@ -294,7 +303,6 @@ export default function ChatbotScreen({ navigation }) {
   );
 }
 
-/* ---------------- styles ---------------- */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
   headerCard: {

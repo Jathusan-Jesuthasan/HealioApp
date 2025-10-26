@@ -5,15 +5,42 @@ import { loadApiKey } from "./secretStore";
 let hasWarned = false;
 let cachedKey = null;
 
+export function resetApiKeyCache() {
+  cachedKey = null;
+  hasWarned = false;
+}
+
 export async function chatWithLLM(messages) {
-  if (!cachedKey) cachedKey = await loadApiKey();
-  const apiKey = cachedKey || process.env.EXPO_PUBLIC_OPENAI_API_KEY; // still support env var if present
-  if (!apiKey) return null;
+  if (!cachedKey) {
+    try {
+      cachedKey = await loadApiKey();
+    } catch (err) {
+      cachedKey = null;
+      if (!hasWarned) {
+        console.warn("Secure store lookup failed:", err?.message || err);
+        hasWarned = true;
+      }
+    }
+  }
+
+  const envKey = typeof process !== "undefined" ? process?.env?.EXPO_PUBLIC_OPENAI_API_KEY : undefined;
+  const apiKey = cachedKey || envKey;
+
+  if (!apiKey) {
+    const err = new Error("Missing OpenAI API key");
+    err.code = "missing-api-key";
+    throw err;
+  }
 
   const safeMessages = (messages || []).filter(
     (m) => m && typeof m.content === "string" && m.content.trim().length > 0
   );
-  if (!safeMessages.length) return null;
+
+  if (!safeMessages.length) {
+    const err = new Error("No messages to send to LLM");
+    err.code = "invalid-payload";
+    throw err;
+  }
 
   try {
     const res = await fetch(OPENAI_CHAT_URL, {
@@ -23,12 +50,14 @@ export async function chatWithLLM(messages) {
     });
 
     if (!res.ok) {
-      if (!hasWarned) {
-        const msg = await res.text();
-        console.warn("LLM error (disabled, using rules):", msg);
-        hasWarned = true;
+      const msg = await res.text();
+      const err = new Error(msg || `OpenAI request failed with status ${res.status}`);
+      err.code = res.status === 401 ? "unauthorized" : "llm-request-failed";
+      err.status = res.status;
+      if (err.code === "unauthorized") {
+        resetApiKeyCache();
       }
-      return null;
+      throw err;
     }
 
     const data = await res.json();
@@ -36,9 +65,9 @@ export async function chatWithLLM(messages) {
     return text || null;
   } catch (e) {
     if (!hasWarned) {
-      console.warn("LLM call failed (using rules):", e?.message);
+      console.warn("LLM call failed:", e?.message || e);
       hasWarned = true;
     }
-    return null;
+    throw e;
   }
 }

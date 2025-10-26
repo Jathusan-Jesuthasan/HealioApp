@@ -242,7 +242,7 @@ export default function LoginScreen({ navigation }) {
 
                 {/* Role Selection */}
                 <View style={styles.roleContainer}>
-                  <Text style={styles.roleLabel}>I am a:</Text>
+                  <Text style={styles.roleLabel}>Login as:</Text>
                   <View style={styles.roleButtons}>
                     <TouchableOpacity 
                       onPress={() => handleInputChange('role', "youth")} 

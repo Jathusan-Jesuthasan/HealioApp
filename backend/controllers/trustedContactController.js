@@ -1,9 +1,254 @@
 import TrustedContact from "../models/TrustedContact.js";
+import TrustedRequest from "../models/TrustedRequest.js";
 import User from "../models/User.js";
 import crypto from "crypto";
 import { sendEmail } from "../utils/sendEmail.js";
 import AIRiskResult from "../models/AIRiskResult.js";
 import { sendAlertEmail } from "../utils/mailer.js";
+
+const isYouth = (role = "") => role.toString().toLowerCase() === "youth";
+const isTrusted = (role = "") => role.toString().toLowerCase() === "trusted";
+
+export const listRegisteredUsers = async (req, res) => {
+  try {
+    const { q = "", role = "Trusted", limit = 50 } = req.query;
+    const normalizedRole = role && role.toString().toLowerCase() !== "all" ? role : null;
+
+    const filter = { _id: { $ne: req.user._id } };
+    if (normalizedRole) {
+      filter.role = normalizedRole === "trusted" ? "Trusted" : normalizedRole === "youth" ? "Youth" : role;
+    }
+
+    const trimmedQuery = q.trim();
+    if (trimmedQuery.length > 0) {
+      filter.$or = [
+        { name: { $regex: trimmedQuery, $options: "i" } },
+        { email: { $regex: trimmedQuery, $options: "i" } },
+      ];
+    }
+
+    const hardLimit = Math.max(1, Math.min(parseInt(limit, 10) || 25, 100));
+
+    const users = await User.find(filter)
+      .select("name email role avatarUrl gender age")
+      .limit(hardLimit)
+      .sort({ name: 1 });
+
+    let statusMap = {};
+    if (isYouth(req.user.role) && users.length) {
+      const requests = await TrustedRequest.find({
+        youthId: req.user._id,
+        trustedId: { $in: users.map((u) => u._id) },
+      }).lean();
+
+      statusMap = requests.reduce((acc, reqDoc) => {
+        acc[reqDoc.trustedId.toString()] = reqDoc.status;
+        return acc;
+      }, {});
+    }
+
+    const payload = users.map((user) => ({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatarUrl: user.avatarUrl || null,
+      gender: user.gender || "",
+      age: user.age || null,
+      requestStatus: statusMap[user._id.toString()] || null,
+    }));
+
+    res.json({ success: true, data: payload });
+  } catch (error) {
+    console.error("Error listing registered users:", error);
+    res.status(500).json({ success: false, message: "Failed to load users" });
+  }
+};
+
+export const createTrustedRequest = async (req, res) => {
+  try {
+    if (!isYouth(req.user.role)) {
+      return res.status(403).json({ message: "Only youth users can send trusted requests" });
+    }
+
+    const { targetUserId, message } = req.body || {};
+    if (!targetUserId) {
+      return res.status(400).json({ message: "targetUserId is required" });
+    }
+
+    if (targetUserId === req.user._id.toString()) {
+      return res.status(400).json({ message: "You cannot send a request to yourself" });
+    }
+
+    const targetUser = await User.findById(targetUserId).select("name email role phone");
+    if (!targetUser) {
+      return res.status(404).json({ message: "Target user not found" });
+    }
+
+    if (!isTrusted(targetUser.role)) {
+      return res.status(400).json({ message: "Selected user is not registered as a trusted person" });
+    }
+
+    const existingContact = await TrustedContact.findOne({
+      user: req.user._id,
+      email: targetUser.email,
+    });
+    if (existingContact) {
+      return res.status(409).json({ message: "This trusted person is already linked to your account" });
+    }
+
+    let request = await TrustedRequest.findOne({
+      youthId: req.user._id,
+      trustedId: targetUser._id,
+    });
+
+    if (request) {
+      if (["Declined", "Cancelled"].includes(request.status)) {
+        request.status = "Pending";
+        request.message = message?.trim() || "";
+        request.respondedAt = null;
+        await request.save();
+      } else {
+        return res.status(409).json({ message: "You already have a pending or accepted request with this trusted person" });
+      }
+    } else {
+      request = await TrustedRequest.create({
+        youthId: req.user._id,
+        trustedId: targetUser._id,
+        message: message?.trim() || "",
+      });
+    }
+
+    res.status(201).json({ success: true, data: request });
+  } catch (error) {
+    console.error("Error creating trusted request:", error);
+    const constraint = error?.code === 11000;
+    res.status(constraint ? 409 : 500).json({
+      success: false,
+      message: constraint ? "Request already exists" : "Failed to create trusted request",
+    });
+  }
+};
+
+export const getOutgoingTrustedRequests = async (req, res) => {
+  try {
+    if (!isYouth(req.user.role)) {
+      return res.status(403).json({ message: "Only youth users can view outgoing requests" });
+    }
+
+    const requests = await TrustedRequest.find({ youthId: req.user._id })
+      .populate("trustedId", "name email role avatarUrl")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    console.error("Error fetching outgoing trusted requests:", error);
+    res.status(500).json({ success: false, message: "Failed to load outgoing requests" });
+  }
+};
+
+export const getIncomingTrustedRequests = async (req, res) => {
+  try {
+    if (!isTrusted(req.user.role)) {
+      return res.status(403).json({ message: "Only trusted users can view incoming requests" });
+    }
+
+    const requests = await TrustedRequest.find({ trustedId: req.user._id })
+      .populate("youthId", "name email role avatarUrl age gender")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    console.error("Error fetching incoming trusted requests:", error);
+    res.status(500).json({ success: false, message: "Failed to load incoming requests" });
+  }
+};
+
+export const respondToTrustedRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body || {};
+
+    if (!id || !action) {
+      return res.status(400).json({ message: "Request id and action are required" });
+    }
+
+    const request = await TrustedRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({ message: "Trusted request not found" });
+    }
+
+    const actionLower = action.toString().toLowerCase();
+
+    if (actionLower === "cancel") {
+      if (!request.youthId.equals(req.user._id)) {
+        return res.status(403).json({ message: "Only the youth user can cancel this request" });
+      }
+      request.status = "Cancelled";
+      request.respondedAt = new Date();
+      await request.save();
+      return res.json({ success: true, data: request });
+    }
+
+    if (!request.trustedId.equals(req.user._id)) {
+      return res.status(403).json({ message: "You are not authorized to respond to this request" });
+    }
+
+    if (request.status !== "Pending") {
+      return res.status(400).json({ message: "This request has already been processed" });
+    }
+
+    if (actionLower === "decline") {
+      request.status = "Declined";
+      request.respondedAt = new Date();
+      await request.save();
+      return res.json({ success: true, data: request });
+    }
+
+    if (actionLower !== "accept") {
+      return res.status(400).json({ message: "Unsupported action" });
+    }
+
+    request.status = "Accepted";
+    request.respondedAt = new Date();
+    await request.save();
+
+    const [youthUser, trustedUser] = await Promise.all([
+      User.findById(request.youthId).select("name email trustedContacts"),
+      User.findById(request.trustedId).select("name email phone linkedYouthIds"),
+    ]);
+
+    if (!youthUser || !trustedUser) {
+      return res.json({ success: true, data: request });
+    }
+
+    let contact = await TrustedContact.findOne({
+      user: youthUser._id,
+      email: trustedUser.email,
+    });
+
+    if (!contact) {
+      contact = await TrustedContact.create({
+        user: youthUser._id,
+        name: trustedUser.name || "Trusted Contact",
+        relation: "Trusted Person",
+        phone: trustedUser.phone || "",
+        email: trustedUser.email,
+        notifyVia: ["email"],
+      });
+    }
+
+    await Promise.all([
+      User.findByIdAndUpdate(trustedUser._id, { $addToSet: { linkedYouthIds: youthUser._id } }),
+      User.findByIdAndUpdate(youthUser._id, { $addToSet: { trustedContacts: contact._id } }),
+    ]);
+
+    res.json({ success: true, data: request, contact });
+  } catch (error) {
+    console.error("Error responding to trusted request:", error);
+    res.status(500).json({ success: false, message: "Failed to update trusted request" });
+  }
+};
 
 
 

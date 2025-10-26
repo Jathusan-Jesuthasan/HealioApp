@@ -1,5 +1,4 @@
-import React, { useState, useContext } from "react";
-import { AuthContext } from "../../context/AuthContext";
+import React, { useState } from "react";
 import { CommonActions } from "@react-navigation/native";
 import {
   StyleSheet,
@@ -18,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  Pressable,
 } from "react-native";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -46,19 +46,38 @@ export default function SignupScreen({ navigation, route }) {
   const [onboardingAnswers, setOnboardingAnswers] = useState({});
   const [onboardingQuestions, setOnboardingQuestions] = useState([]);
   
-  const { signIn } = useContext(AuthContext);
   
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
   const genderOptions = [
-    { value: "male", label: "Male", icon: "male" },
-    { value: "female", label: "Female", icon: "female" },
-    { value: "non-binary", label: "Non-binary", icon: "user" },
-    { value: "transgender", label: "Transgender", icon: "user" },
+    { value: "male", label: "Male", icon: "user" },
+    { value: "female", label: "Female", icon: "user-check" },
+    { value: "non-binary", label: "Non-binary", icon: "users" },
+    { value: "transgender", label: "Transgender", icon: "shuffle" },
     { value: "other", label: "Other", icon: "help-circle" },
     { value: "prefer-not-to-say", label: "Prefer not to say", icon: "eye-off" },
   ];
+
+  const normalizeRole = (role) => (role === "trusted" ? "Trusted" : "Youth");
+
+  const normalizeGender = (value) => {
+    switch (value) {
+      case "male":
+        return "Male";
+      case "female":
+        return "Female";
+      case "prefer-not-to-say":
+        return "Prefer not to say";
+      case "other":
+        return "Other";
+      case "non-binary":
+      case "transgender":
+        return "Other";
+      default:
+        return "";
+    }
+  };
 
   React.useEffect(() => {
     Animated.parallel([
@@ -78,65 +97,50 @@ export default function SignupScreen({ navigation, route }) {
   const validateEmail = (val) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val).toLowerCase());
 
-  const validateField = (field, value) => {
-    const newErrors = { ...errors };
-    
+  const getFieldError = (field, value) => {
+    const trimmedValue = typeof value === "string" ? value.trim() : value;
+
     switch (field) {
-      case 'email':
-        if (!value.trim()) {
-          newErrors.email = "Email is required";
-        } else if (!validateEmail(value)) {
-          newErrors.email = "Please enter a valid email address";
-        } else {
-          delete newErrors.email;
+      case "email":
+        if (!trimmedValue) return "Email is required";
+        if (!validateEmail(value)) return "Please enter a valid email address";
+        return null;
+      case "password":
+        if (!value) return "Password is required";
+        if (value.length < 6) return "Password must be at least 6 characters";
+        return null;
+      case "confirm":
+        if (!value) return "Please confirm your password";
+        if (value !== formData.password) return "Passwords don't match";
+        return null;
+      case "name":
+        if (!trimmedValue) return "Name is required";
+        return null;
+      case "age":
+        if (!trimmedValue) return "Age is required";
+        if (isNaN(value) || parseInt(value, 10) < 13 || parseInt(value, 10) > 25) {
+          return "Please enter a valid age (13-25)";
         }
-        break;
-      case 'password':
-        if (!value) {
-          newErrors.password = "Password is required";
-        } else if (value.length < 6) {
-          newErrors.password = "Password must be at least 6 characters";
-        } else {
-          delete newErrors.password;
-        }
-        break;
-      case 'confirm':
-        if (!value) {
-          newErrors.confirm = "Please confirm your password";
-        } else if (value !== formData.password) {
-          newErrors.confirm = "Passwords don't match";
-        } else {
-          delete newErrors.confirm;
-        }
-        break;
-      case 'name':
-        if (!value.trim()) {
-          newErrors.name = "Name is required";
-        } else {
-          delete newErrors.name;
-        }
-        break;
-      case 'age':
-        if (!value.trim()) {
-          newErrors.age = "Age is required";
-        } else if (isNaN(value) || parseInt(value) < 13 || parseInt(value) > 120) {
-          newErrors.age = "Please enter a valid age (13-120)";
-        } else {
-          delete newErrors.age;
-        }
-        break;
-      case 'gender':
-        if (!value.trim()) {
-          newErrors.gender = "Please select your gender";
-        } else {
-          delete newErrors.gender;
-        }
-        break;
+        return null;
+      case "gender":
+        if (!trimmedValue) return "Please select your gender";
+        return null;
       default:
-        break;
+        return null;
     }
-    
-    setErrors(newErrors);
+  };
+
+  const validateField = (field, value) => {
+    const errorMessage = getFieldError(field, value);
+    setErrors((prev) => {
+      const updated = { ...prev };
+      if (errorMessage) {
+        updated[field] = errorMessage;
+      } else {
+        delete updated[field];
+      }
+      return updated;
+    });
   };
 
   const handleInputChange = (field, value) => {
@@ -194,6 +198,8 @@ export default function SignupScreen({ navigation, route }) {
     return selected ? selected.icon : "user";
   };
 
+  const Touchable = Platform.OS === "web" ? Pressable : TouchableOpacity;
+
   const goToLogin = () => {
     navigation.dispatch(
       CommonActions.reset({
@@ -203,29 +209,52 @@ export default function SignupScreen({ navigation, route }) {
     );
   };
 
+  const goToYouthQuestionnaire = (userData) => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [
+          {
+            name: "YouthQuestionnaire",
+            params: {
+              userData,
+              token: userData?.token,
+              fromSignup: true,
+              showRolePrompt: true,
+            },
+          },
+        ],
+      })
+    );
+  };
+
   const handleSignup = async () => {
-    // Validate all fields before submission
-    Object.keys(formData).forEach(field => {
-      validateField(field, formData[field]);
+    const fieldsToValidate = ["email", "password", "confirm", "name", "age", "gender"];
+    const validationErrors = {};
+
+    fieldsToValidate.forEach((field) => {
+      const errorMessage = getFieldError(field, formData[field]);
+      if (errorMessage) {
+        validationErrors[field] = errorMessage;
+      }
     });
 
-    // If user is youth, ensure onboarding answers collected
-    if (formData.role === 'youth') {
-      const required = [0,1,2,3,4];
-      for (let i of required) {
-        if (!onboardingAnswers[`q${i}`]) {
-          return Alert.alert('One more step', 'Please complete the youth onboarding questions before continuing.');
-        }
-      }
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return Alert.alert("Almost There! 🌟", "Please fix the highlighted fields before continuing.");
     }
 
-    if (Object.keys(errors).length > 0) {
-      return Alert.alert("Almost There! 🌟", "Please fix the errors before continuing.");
+    const canonicalRole = normalizeRole(formData.role);
+    const canonicalGender = normalizeGender(formData.gender);
+
+    if (!canonicalGender) {
+      return Alert.alert("Almost There! 🌟", "Please select a gender option before continuing.");
     }
 
-    if (!formData.email || !formData.password || !formData.confirm || 
-        !formData.name || !formData.age || !formData.gender || !formData.role) {
-      return Alert.alert("Almost There! 🌟", "Please fill in all fields to start your wellness journey.");
+    const numericAge = Number(formData.age);
+    if (Number.isNaN(numericAge)) {
+      return Alert.alert("Almost There! 🌟", "Please provide a valid age.");
     }
 
     try {
@@ -233,33 +262,30 @@ export default function SignupScreen({ navigation, route }) {
       const { data } = await api.post("/api/auth/register", {
         email: formData.email.trim(),
         password: formData.password,
-        name: formData.name,
-        age: Number(formData.age),
-        gender: formData.gender,
-        role: formData.role,
-        answers: [
-          { question: "age", answer: formData.age },
-          { question: "gender", answer: formData.gender },
-          { question: "role", answer: formData.role },
-          // append onboarding answers for youth
-          ...(formData.role === 'youth'
-            ? Object.keys(onboardingAnswers).map(k => ({ question: k, answer: onboardingAnswers[k] }))
-            : []),
-        ],
+        name: formData.name.trim(),
+        age: numericAge,
+        gender: canonicalGender,
+        role: canonicalRole,
       });
       console.log("Registered:", data);
-      // If youth, continue to onboarding questions screen
-      if (formData.role === 'youth') {
-        // navigate to onboarding wizard and pass token & profile
-        navigation.navigate('OnboardingWizard', { token: data.token, profile: data.profile, role: 'youth', returnTo: 'Signup' });
+
+      const profilePayload = data?.profile || {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role ?? canonicalRole,
+        age: data.age ?? numericAge,
+        gender: data.gender ?? canonicalGender,
+      };
+
+      if (canonicalRole === "Youth") {
+        goToYouthQuestionnaire({ token: data.token, profile: profilePayload });
         return;
       }
 
-      // For non-youth roles, sign in and go to app
-      await signIn(data.token, data.profile);
       Alert.alert(
         "Welcome to Healio! 🎉",
-        "Your account has been created successfully. Your mental wellness journey starts now!"
+        "Your account has been created successfully. Please sign in to continue."
       );
       goToLogin();
     } catch (error) {
@@ -290,6 +316,16 @@ export default function SignupScreen({ navigation, route }) {
     if (focusedField === field) return '#10B981';
     return '#666';
   };
+
+  const requiredFields = ["email", "password", "confirm", "name", "age", "gender"];
+  const isFormComplete = requiredFields.every((field) => {
+    const value = formData[field];
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+    return Boolean(value);
+  });
+  const hasBlockingErrors = Object.keys(errors).length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -385,7 +421,7 @@ export default function SignupScreen({ navigation, route }) {
                         onBlur={() => handleInputBlur('password')}
                         returnKeyType="next"
                       />
-                      <TouchableOpacity 
+                      <Touchable 
                         onPress={() => setShowPassword(!showPassword)}
                         style={styles.eyeIcon}
                       >
@@ -394,7 +430,7 @@ export default function SignupScreen({ navigation, route }) {
                           size={20} 
                           color={getIconColor('password')} 
                         />
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                     {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
                     {!errors.password && formData.password && (
@@ -419,7 +455,7 @@ export default function SignupScreen({ navigation, route }) {
                         onBlur={() => handleInputBlur('confirm')}
                         returnKeyType="next"
                       />
-                      <TouchableOpacity 
+                      <Touchable 
                         onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                         style={styles.eyeIcon}
                       >
@@ -428,7 +464,7 @@ export default function SignupScreen({ navigation, route }) {
                           size={20} 
                           color={getIconColor('confirm')} 
                         />
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                     {errors.confirm && <Text style={styles.errorText}>{errors.confirm}</Text>}
                     {!errors.confirm && formData.confirm && formData.password === formData.confirm && (
@@ -475,7 +511,7 @@ export default function SignupScreen({ navigation, route }) {
 
                   {/* Gender Selection */}
                   <View>
-                    <TouchableOpacity 
+                    <Touchable 
                       style={getInputStyle('gender')}
                       onPress={() => setShowGenderModal(true)}
                     >
@@ -492,83 +528,17 @@ export default function SignupScreen({ navigation, route }) {
                         color={getIconColor('gender')} 
                         style={styles.chevronIcon}
                       />
-                    </TouchableOpacity>
+                    </Touchable>
                     {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
                   </View>
 
-                  {/* Role Selection */}
-                  <View style={styles.roleContainer}>
-                    <Text style={styles.roleLabel}>I am a:</Text>
-                    <View style={styles.roleButtons}>
-                      <TouchableOpacity 
-                        onPress={() => handleInputChange('role', "youth")} 
-                        style={[
-                          styles.roleBtn, 
-                          formData.role === "youth" && styles.roleSelected
-                        ]}
-                      >
-                        <Ionicons 
-                          name="person" 
-                          size={20} 
-                          color={formData.role === "youth" ? '#10B981' : '#666'} 
-                        />
-                        <Text style={[
-                          styles.roleText, 
-                          formData.role === "youth" && styles.roleTextSelected
-                        ]}>
-                          Youth
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        onPress={() => handleInputChange('role', "trusted")} 
-                        style={[
-                          styles.roleBtn, 
-                          formData.role === "trusted" && styles.roleSelected
-                        ]}
-                      >
-                        <Ionicons 
-                          name="people" 
-                          size={20} 
-                          color={formData.role === "trusted" ? '#10B981' : '#666'} 
-                        />
-                        <Text style={[
-                          styles.roleText, 
-                          formData.role === "trusted" && styles.roleTextSelected
-                        ]}>
-                          Trusted Person
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Youth Onboarding Wizard (5 steps) */}
-                  {formData.role === 'youth' && (
-                                    <View style={{ marginTop: 12 }}>
-                                      <Text style={{ fontSize: 16, fontWeight: '700', marginBottom: 8 }}>A few quick questions</Text>
-                                      <Text style={{ color: '#6B7280', marginBottom: 12 }}>Help us personalize your experience — it only takes a moment.</Text>
-
-                                      <TouchableOpacity
-                                        style={[styles.roleBtn, { justifyContent: 'center' }]}
-                                        onPress={() => navigation.navigate('OnboardingWizard', { role: 'youth', returnTo: 'Signup' })}
-                                      >
-                                        <Text style={{ color: '#10B981', fontWeight: '700' }}>Open onboarding wizard</Text>
-                                      </TouchableOpacity>
-                                      {/* If onboardingAnswers were returned via navigation params, merge them */}
-                                      {route?.params?.onboardingAnswers && (
-                                        <View style={{ marginTop: 12 }}>
-                                          <Text style={{ color: '#374151', fontSize: 14, fontWeight: '600' }}>Answers saved</Text>
-                                        </View>
-                                      )}
-                                    </View>
-                                  )}
-
-                  <TouchableOpacity
+                  <Touchable
                     style={[
                       styles.signUpButton,
-                      (Object.keys(errors).length > 0 || loading) && styles.signUpButtonDisabled
+                      (hasBlockingErrors || !isFormComplete || loading) && styles.signUpButtonDisabled
                     ]}
                     onPress={handleSignup}
-                    disabled={loading || Object.keys(errors).length > 0}
+                    disabled={loading || hasBlockingErrors || !isFormComplete}
                   >
                     <LinearGradient
                       colors={['#10B981', '#4A90E2']}
@@ -585,14 +555,14 @@ export default function SignupScreen({ navigation, route }) {
                         </>
                       )}
                     </LinearGradient>
-                  </TouchableOpacity>
+                  </Touchable>
 
                   {/* Login Link */}
                   <View style={styles.loginContainer}>
                     <Text style={styles.loginText}>Already part of our community? </Text>
-                    <TouchableOpacity onPress={goToLogin}>
+                    <Touchable onPress={goToLogin}>
                       <Text style={styles.loginLink}>Welcome back!</Text>
-                    </TouchableOpacity>
+                    </Touchable>
                   </View>
                 </LinearGradient>
               </View>
@@ -619,17 +589,17 @@ export default function SignupScreen({ navigation, route }) {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Select Gender</Text>
-                <TouchableOpacity 
+                <Touchable 
                   onPress={() => setShowGenderModal(false)}
                   style={styles.modalCloseButton}
                 >
                   <Feather name="x" size={24} color="#666" />
-                </TouchableOpacity>
+                </Touchable>
               </View>
               
               <ScrollView style={styles.modalScroll}>
                 {genderOptions.map((option) => (
-                  <TouchableOpacity
+                  <Touchable
                     key={option.value}
                     style={[
                       styles.genderOption,
@@ -651,7 +621,7 @@ export default function SignupScreen({ navigation, route }) {
                     {formData.gender === option.value && (
                       <Feather name="check" size={20} color="#10B981" />
                     )}
-                  </TouchableOpacity>
+                  </Touchable>
                 ))}
               </ScrollView>
             </View>

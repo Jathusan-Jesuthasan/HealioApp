@@ -76,7 +76,7 @@ import NotificationsScreen from "./screens/User_Profile/NotificationsScreen";
 import LanguageScreen from "./screens/User_Profile/LanguageScreen";
 import ThemeScreen from "./screens/User_Profile/ThemeScreen";
 import InviteFriendsScreen from "./screens/Youth_User/InviteTrustedContactScreen";
-import TrustedContactsScreen from "./screens/Trusted_Contact/TrustedContactsScreen";
+import TrustedContactsScreen from "./screens/Trusted_Contact/LinkedContacts";
 import AddTrustedContact from "./screens/Youth_User/AddTrustedContact";
 import EmergencyContactScreen from "./screens/Youth_User/EmergencyContactScreen";
 import YouthDashboardScreen from "./screens/Youth_User/YouthDashboardScreen";
@@ -89,6 +89,7 @@ import LogoutScreen from "./screens/User_Profile/LogoutScreen";
 import SOSScreen from "./screens/Youth_User/SOSScreen";
 import RoleManagementScreen from "./screens/User_Profile/RoleManagementScreen";
 import TrustedDashboardScreen from "./screens/Trusted_Contact/TrustedDashboardScreen";
+import TrustedAnalyticsScreen from "./screens/Trusted_Contact/TrustedAnalyticsScreen";
 import CommunityHubScreen from "./screens/Youth_Trusted/CommunityHubScreen";
 // Chat screens handled elsewhere
 
@@ -142,6 +143,7 @@ const TrustedContactsWithHeader = withHeader(TrustedContactsScreen);
 const EmergencyWithHeader = withHeader(EmergencyContactScreen);
 const YouthDashWithHeader = withHeader(YouthDashboardScreen);
 const TrustedDashWithHeader = withHeader(TrustedDashboardScreen);
+const TrustedAnalyticsWithHeader = withHeader(TrustedAnalyticsScreen);
 const RoleManageWithHeader = withHeader(RoleManagementScreen);
 const CommunityHubWithHeader = withHeader(CommunityHubScreen);
 const SecurityWithHeader = withHeader(SecurityScreen);
@@ -153,6 +155,29 @@ const LogoutWithHeader = withHeader(LogoutScreen);
 const ChatWithHeader = withHeader(ChatScreen);
 const ChatRoomWithHeader = withHeader(ChatScreen);
 // Chat wrappers removed (restored to prior state)
+
+const ACTIVE_SOS_EXCLUDE_SCREENS = ["Chat", "ChatRoom", "Chatbot"];
+
+const isRouteActive = (state, targets) => {
+  if (!state) return false;
+  const index = typeof state.index === "number" ? state.index : 0;
+  const route = state.routes?.[index];
+  if (!route) return false;
+
+  if (targets.includes(route.name)) {
+    return true;
+  }
+
+  if (route.state) {
+    return isRouteActive(route.state, targets);
+  }
+
+  if (route.params?.screen && targets.includes(route.params.screen)) {
+    return true;
+  }
+
+  return false;
+};
 
 const AppTabs = () => {
   const { userRole } = useContext(AuthContext);
@@ -223,6 +248,20 @@ function ProfileStack() {
 /* ---------------- YOUTH USER TABS ---------------- */
 function YouthUserTabs() {
   const navigation = useNavigation();
+  const [showSOSFab, setShowSOSFab] = useState(true);
+
+  useEffect(() => {
+    const updateVisibility = () => {
+      const currentState = navigation.getState?.();
+      const shouldHide = isRouteActive(currentState, ACTIVE_SOS_EXCLUDE_SCREENS);
+      setShowSOSFab(!shouldHide);
+    };
+
+    updateVisibility();
+
+    const unsubscribe = navigation.addListener("state", updateVisibility);
+    return unsubscribe;
+  }, [navigation]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -231,7 +270,7 @@ function YouthUserTabs() {
         screenOptions={{ headerShown: false }}
       >
         <Tab.Screen name="Home" component={YouthDashWithHeader} />
-  <Tab.Screen name="Activity" component={ActivityStackNavigator} />
+        <Tab.Screen name="Activity" component={ActivityStackNavigator} />
         <Tab.Screen name="MoodLog" component={MoodWithHeader} />
         <Tab.Screen name="Chat" component={ChatWithHeader} />
         <Tab.Screen name="Community" component={CommunityHubWithHeader} />
@@ -239,7 +278,16 @@ function YouthUserTabs() {
       </Tab.Navigator>
 
       {/* Floating SOS FAB for youth users - opens the SOS screen inside Profile stack */}
-      <SOSFab onPress={() => navigation.navigate("Profile", { screen: "SOS" })} />
+      {showSOSFab && (
+        <SOSFab
+          onPress={() =>
+            navigation.navigate("AppTabs", {
+              screen: "Profile",
+              params: { screen: "SOS" },
+            })
+          }
+        />
+      )}
       {/* Floating chat actions removed (undo) */}
     </View>
   );
@@ -252,13 +300,11 @@ function TrustedPersonTabs() {
       tabBar={(props) => <TrustedBottomNavBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="Home" component={TrustedDashWithHeader} />
+      <Tab.Screen name="TrustedDashboard" component={TrustedDashWithHeader} />
+      <Tab.Screen name="TrustedAnalytics" component={TrustedAnalyticsWithHeader} />
       <Tab.Screen name="Chat" component={ChatWithHeader} />
-      <Tab.Screen name="MoodLog" component={MoodWithHeader} />
-  <Tab.Screen name="Activity" component={ActivityStackNavigator} />
       <Tab.Screen name="Community" component={CommunityHubWithHeader} />
       <Tab.Screen name="Profile" component={ProfileStack} />
-      
     </Tab.Navigator>
   );
 }
@@ -284,7 +330,7 @@ function AuthStack({ hasOnboarded, setHasOnboarded }) {
       )}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
-  <Stack.Screen name="OnboardingWizard" component={OnboardingWizard} />
+      <Stack.Screen name="OnboardingWizard" component={OnboardingWizard} />
       <Stack.Screen name="YouthQuestionnaire" component={YouthQuestionnaireScreen} />
       <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
     </Stack.Navigator>

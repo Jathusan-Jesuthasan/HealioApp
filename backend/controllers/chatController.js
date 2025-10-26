@@ -15,25 +15,36 @@ export const listConversations = async (req, res) => {
   const userId = req.user._id;
   const convos = await Conversation.find({ participants: userId })
     .sort({ lastMessageAt: -1 })
-    .populate("participants", "name email role profileImage");
+    .populate("participants", "firstName lastName name email role profileImage givenName familyName");
   res.json(convos);
 };
 
 // Youth can start conversation; Trusted cannot
 export const startConversation = async (req, res) => {
   const userId = req.user._id;
-  const me = await User.findById(userId);
-  if (me.role !== "Youth") {
-    return res.status(403).json({ message: "Only Youth can start conversations" });
+
+  const { participantId } = req.body;
+  if (!participantId) {
+    return res.status(400).json({ message: "participantId required" });
   }
 
-  const { participantId } = req.body; // trusted user id
-  if (!participantId) return res.status(400).json({ message: "participantId required" });
+  if (participantId.toString() === userId.toString()) {
+    return res.status(400).json({ message: "Cannot start a conversation with yourself" });
+  }
 
-  const other = await User.findById(participantId);
-  if (!other) return res.status(404).json({ message: "Trusted person not found" });
+  const [me, other] = await Promise.all([
+    User.findById(userId),
+    User.findById(participantId),
+  ]);
 
-  // Check if conversation exists
+  if (!me) {
+    return res.status(404).json({ message: "Requesting user not found" });
+  }
+
+  if (!other) {
+    return res.status(404).json({ message: "Target user not found" });
+  }
+
   let convo = await Conversation.findOne({
     participants: { $all: [userId, participantId], $size: 2 },
   });
@@ -44,6 +55,9 @@ export const startConversation = async (req, res) => {
       createdBy: userId,
     });
   }
+
+  await convo.populate("participants", "firstName lastName name email role profileImage");
+
   res.status(201).json(convo);
 };
 

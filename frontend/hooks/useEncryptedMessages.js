@@ -23,7 +23,12 @@ export const useEncryptedMessages = (conversationId) => {
         _id: d.id,
         text: d.encryptedBody ? dec(d.encryptedBody) : (d.body || ''),
         createdAt: d.createdAt?.toDate ? d.createdAt.toDate() : (d.createdAt || new Date()),
-        user: d.user || { _id: d.sender || 'unknown', name: d.senderName || 'Unknown' },
+        user: {
+          _id: d.user?._id || d.sender || d.senderId || 'unknown',
+          name: d.user?.name || d.senderName || 'Unknown',
+          avatar: d.user?.avatar || d.senderAvatar || undefined,
+          role: d.user?.role || d.senderRole || 'User',
+        },
         sent: true,
       }));
       setMessages(mapped);
@@ -33,11 +38,27 @@ export const useEncryptedMessages = (conversationId) => {
 
   const sendMessage = useCallback(async (text, sender) => {
     if (!conversationId || !text) return;
+    const senderId = sender?._id || sender?.id;
+    if (!senderId) {
+      console.warn('[useEncryptedMessages] missing sender id, aborting send');
+      return;
+    }
+    const senderName = sender?.name || 'Unknown';
+    const senderAvatar = sender?.avatar || sender?.profileImage;
+    const senderRole = sender?.role || 'User';
     const payload = {
       encryptedBody: enc(text),
-      sender: sender?._id || sender?.id || 'anon',
-      senderName: sender?.name || 'Unknown',
-      user: { _id: sender?._id || sender?.id || 'anon', name: sender?.name || 'Unknown' },
+      sender: String(senderId),
+      senderId: String(senderId),
+      senderName,
+      senderAvatar,
+      senderRole,
+      user: {
+        _id: String(senderId),
+        name: senderName,
+        avatar: senderAvatar,
+        role: senderRole,
+      },
     };
     await messagingService.createMessage(conversationId, payload);
   }, [conversationId]);

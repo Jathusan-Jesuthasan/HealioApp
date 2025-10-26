@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Alert,
   Dimensions,
   StatusBar,
+  ActivityIndicator,
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -76,12 +78,17 @@ export default function ProfileScreen({ navigation }) {
   const [monitoredList, setMonitoredList] = useState([]);
   const [trustedCount, setTrustedCount] = useState(0);
   const [monitoredCount, setMonitoredCount] = useState(0);
+  const [trustedPersonStatus, setTrustedPersonStatus] = useState('inactive');
+  const [chatLoadingId, setChatLoadingId] = useState(null);
+  const [questionnaire, setQuestionnaire] = useState(null);
 
   const [isLogoutModal, setLogoutModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastRole, setLastRole] = useState(null);
   const [undoVisible, setUndoVisible] = useState(false);
   const undoTimerRef = useRef(null);
+
+  const isYouth = (profile.role || '').toString().toLowerCase() === 'youth';
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -116,7 +123,7 @@ export default function ProfileScreen({ navigation }) {
   // When the screen gains focus, refresh the profile shown
   useEffect(() => {
     if (isFocused && userToken) fetchProfile();
-  }, [isFocused]);
+  }, [isFocused, userToken]);
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100],
@@ -134,9 +141,8 @@ export default function ProfileScreen({ navigation }) {
   const fetchProfile = async () => {
     if (!userToken) return;
     try {
-      const { data } = await api.get("/api/users/me", {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
+      const headers = { Authorization: `Bearer ${userToken}` };
+      const { data } = await api.get("/api/users/me", { headers });
       const mapped = {
         name: data.name || profile.name,
         email: data.email || profile.email,
@@ -152,9 +158,106 @@ export default function ProfileScreen({ navigation }) {
       setMonitoredCount(monitored.length || 0);
       setTrustedList((trusted || []).slice(0, 3));
       setMonitoredList((monitored || []).slice(0, 3));
+      const derivedStatus = data?.trustedPersonStatus
+        || (Array.isArray(trusted) && trusted.length > 0 ? 'active' : 'inactive');
+      setTrustedPersonStatus(derivedStatus);
+
+      try {
+        const questionnaireResponse = await api.get("/api/questionnaire", { headers });
+        setQuestionnaire(questionnaireResponse?.data?.data || null);
+      } catch (questionnaireErr) {
+        const status = questionnaireErr?.response?.status;
+        if (status === 404 || status === 403) {
+          setQuestionnaire(null);
+        } else {
+          console.warn("Could not fetch questionnaire:", questionnaireErr.message || questionnaireErr);
+          setQuestionnaire(null);
+        }
+      }
     } catch (e) {
       console.warn("Could not fetch profile:", e.message || e);
+      setQuestionnaire(null);
     }
+  };
+  const questionnaireEntries = useMemo(() => {
+    if (!questionnaire) return [];
+
+    const entries = [];
+    const addEntry = (id, label, formatter, options = {}) => {
+      const raw = questionnaire[id];
+      const includeFalse = options.includeFalse === true;
+
+      if (typeof raw === "boolean") {
+        if (!includeFalse && raw === false) return;
+      } else if (raw === null || raw === undefined || raw === "") {
+        return;
+      } else if (Array.isArray(raw) && raw.length === 0) {
+        return;
+      }
+
+      const formatted = typeof formatter === "function" ? formatter(raw) : raw;
+      if (formatted === null || formatted === undefined || formatted === "") return;
+
+      entries.push({ id, label, value: formatted });
+    };
+
+    addEntry("age", "Age", (value) => `${value} years old`);
+    addEntry("gender", "Gender");
+    addEntry("stressLevel", "Stress Level");
+    addEntry("sleepQuality", "Sleep Quality");
+    addEntry("socialSupport", "Social Support");
+    addEntry("academicPressure", "Academic Pressure");
+    addEntry(
+      "preferredSupportType",
+      "Preferred Support",
+      (value) => (Array.isArray(value) ? value.join(", ") : value)
+    );
+    addEntry(
+      "hasEmergencyContact",
+      "Emergency Contact",
+      (value) => (value ? "Yes" : "No"),
+      { includeFalse: true }
+    );
+
+    if (questionnaire.hasEmergencyContact) {
+      addEntry("emergencyContactName", "Contact Name");
+      addEntry("emergencyContactPhone", "Contact Phone");
+    }
+
+    addEntry(
+      "allowMoodTracking",
+      "Mood Tracking",
+      (value) => (value ? "Enabled" : "Disabled"),
+      { includeFalse: true }
+    );
+
+    addEntry("additionalNotes", "Additional Notes", (value) => {
+      if (typeof value !== "string") return String(value);
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    });
+
+    return entries;
+  }, [questionnaire]);
+
+  const questionnaireUpdatedLabel = useMemo(() => {
+    if (!questionnaire?.updatedAt) return null;
+    try {
+      const date = new Date(questionnaire.updatedAt);
+      return `Updated ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } catch (err) {
+      return null;
+    }
+  }, [questionnaire]);
+
+
+  const getTrustedPersonStatusText = () => {
+    const statusMap = {
+      active: { text: 'Active - Notifications Enabled', color: COLORS.accent, icon: '🔔' },
+      inactive: { text: 'Inactive - Setup Required', color: COLORS.textLight, icon: '⚙️' },
+      notified: { text: 'Recently Notified', color: COLORS.warning, icon: '📤' },
+    };
+    return statusMap[trustedPersonStatus] || statusMap.inactive;
   };
 
   // Quick role toggle with undo support
@@ -211,6 +314,122 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const resolveContactId = useCallback((contact) => {
+    if (!contact) return null;
+
+    if (typeof contact === 'string') {
+      const normalized = contact.trim();
+      return normalized.length ? normalized : null;
+    }
+
+    const currentId = user?._id ? String(user._id) : null;
+    const normalize = (value) => {
+      if (!value) return null;
+      const candidate = String(value);
+      return currentId && candidate === currentId ? null : candidate;
+    };
+
+    const priorityCandidates = [
+      contact.linkedUserId,
+      contact.linkedYouthId,
+      contact.userId,
+      contact.trustedUserId,
+      contact.trustedId,
+      contact.youthId,
+      contact.participantId,
+      contact.targetUserId,
+      contact.memberId,
+      contact.accountId,
+    ];
+
+    for (const field of priorityCandidates) {
+      const resolved = normalize(field);
+      if (resolved) return resolved;
+    }
+
+    if (contact.user) {
+      const linkedUser =
+        typeof contact.user === 'object'
+          ? contact.user._id || contact.user.id
+          : contact.user;
+      const resolved = normalize(linkedUser);
+      if (resolved) return resolved;
+    }
+
+    if (!contact.user && (contact._id || contact.id)) {
+      const resolved = normalize(contact._id || contact.id);
+      if (resolved) return resolved;
+    }
+
+    return null;
+  }, [user?._id]);
+
+  const handleOpenChat = useCallback(async (contact) => {
+    if (!userToken) {
+      Alert.alert('Unavailable', 'Please sign in again to start a chat.');
+      return;
+    }
+
+    const contactId = resolveContactId(contact);
+    if (!contactId) {
+      Alert.alert('Invite pending', 'This contact has not linked a Healio account yet. Ask them to join to start chatting.');
+      return;
+    }
+
+    if (chatLoadingId) {
+      return;
+    }
+
+    const myId = user?._id || user?.id;
+
+    try {
+      setChatLoadingId(contactId);
+      const { data: conversation } = await api.post(
+        '/api/chat/conversations',
+        { participantId: contactId },
+        { headers: { Authorization: `Bearer ${userToken}` } }
+      );
+
+      const participants = conversation?.participants || [];
+      const partner = participants.find((p) => String(p?._id) !== String(myId)) || null;
+
+      const baseContact =
+        typeof contact === 'object' && contact !== null ? contact : { id: contactId };
+
+      const normalizedContact = {
+        ...baseContact,
+        ...(partner || {}),
+        _id: partner?._id || baseContact._id || contactId,
+        role:
+          partner?.role ||
+          baseContact.role ||
+          (profile.role === 'Trusted' ? 'Youth' : 'Trusted'),
+      };
+
+      if (myId) {
+        try {
+          await import('../../services/messagingService').then((m) =>
+            m.createConversationIfMissing(conversation._id, {
+              participants: [String(myId), String(contactId)],
+            })
+          );
+        } catch (err) {
+          console.warn('Could not ensure messaging room', err.message || err);
+        }
+      }
+
+      navigation.navigate('ChatRoom', {
+        conversationId: conversation._id,
+        other: normalizedContact,
+      });
+    } catch (err) {
+      console.warn('Open chat via profile failed:', err.response?.data || err.message || err);
+      Alert.alert('Unable to open chat', err.response?.data?.message || 'Please try again in a moment.');
+    } finally {
+      setChatLoadingId(null);
+    }
+  }, [chatLoadingId, navigation, profile.role, resolveContactId, user?._id, userToken]);
+
   const ProfileCard = ({ icon, title, subtitle, onPress, color = COLORS.secondary, badge }) => (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
       <MotiView
@@ -265,6 +484,8 @@ export default function ProfileScreen({ navigation }) {
       },
     ]);
   };
+
+  const trustedStatusDetails = getTrustedPersonStatusText();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -380,8 +601,11 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            {(profile.role === 'Trusted' ? monitoredList : trustedList).map((p) => (
-              <TouchableOpacity key={p._id || p.id || p.email} style={{ flex: 1, marginRight: 8 }} activeOpacity={0.8}>
+            {(profile.role === 'Trusted' ? monitoredList : trustedList).map((p) => {
+              const contactId = resolveContactId(p);
+              const isChatLoading = contactId && chatLoadingId === contactId;
+              return (
+              <TouchableOpacity key={p._id || p.id || p.email || contactId} style={{ flex: 1, marginRight: 8 }} activeOpacity={0.8}>
                 <View style={{ backgroundColor: COLORS.card, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }}>
                   <Image
                     source={{
@@ -393,8 +617,16 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={{ fontWeight: '700', color: COLORS.text }} numberOfLines={1}>{p.name || p.fullName || p.displayName || p.email}</Text>
                   {p.phone ? <Text style={{ color: COLORS.textLight, fontSize: 12 }}>{p.phone}</Text> : null}
                   <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                    <TouchableOpacity style={{ marginRight: 8 }} onPress={() => navigation.navigate('ChatRoom', { contact: p })}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.secondary} />
+                    <TouchableOpacity
+                      style={{ marginRight: 8, opacity: contactId ? 1 : 0.4 }}
+                      onPress={() => handleOpenChat(p)}
+                      disabled={!contactId || isChatLoading}
+                    >
+                      {isChatLoading ? (
+                        <ActivityIndicator size="small" color={COLORS.secondary} />
+                      ) : (
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.secondary} />
+                      )}
                     </TouchableOpacity>
                     {p.phone ? (
                       <TouchableOpacity onPress={() => {
@@ -408,13 +640,47 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 </View>
               </TouchableOpacity>
-            ))}
+            );
+            })}
             {/* show placeholder boxes if less than 3 to keep layout */}
             {Array.from({ length: Math.max(0, 3 - (profile.role === 'Trusted' ? monitoredList.length : trustedList.length)) }).map((_, i) => (
               <View key={`empty-${i}`} style={{ flex: 1, marginRight: 8, backgroundColor: COLORS.primaryDark, borderRadius: 12, padding: 12, opacity: 0.03 }} />
             ))}
           </View>
         </View>
+
+        {/* Trusted Support Network */}
+        {isYouth && (
+          <View style={styles.trustedCard}>
+            <View style={styles.trustedCardHeader}>
+              <Text style={styles.trustedCardTitle}>👨‍👩‍👧 Trusted Support Network</Text>
+              <Ionicons name="people" size={20} color={COLORS.secondary} />
+            </View>
+
+            <View style={styles.trustedStatus}>
+              <Text
+                style={[styles.trustedStatusText, { color: trustedStatusDetails.color }]}
+              >
+                {trustedStatusDetails.icon} {trustedStatusDetails.text}
+              </Text>
+
+              <Text style={styles.trustedDescription}>
+                {trustedPersonStatus === 'active'
+                  ? 'Your trusted person will receive automated alerts if concerning patterns are detected.'
+                  : 'Link a trusted contact so they can be notified when you might need support.'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.trustedButton}
+              onPress={() => navigation.navigate('TrustedPerson')}
+            >
+              <Text style={styles.trustedButtonText}>
+                {trustedPersonStatus === 'active' ? 'Manage Settings' : 'Setup Trusted Contact'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Main Actions Grid */}
         <View style={styles.actionsGrid}>
@@ -465,6 +731,36 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Profile Sections */}
         <View style={styles.sectionsContainer}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Wellness Snapshot</Text>
+            {questionnaireEntries.length > 0 ? (
+              <View style={styles.wellnessCard}>
+                {questionnaireEntries.map((entry, index) => (
+                  <View key={entry.id} style={styles.wellnessRow}>
+                    <Text style={styles.wellnessLabel}>{entry.label}</Text>
+                    <Text style={styles.wellnessValue}>{entry.value}</Text>
+                    {index < questionnaireEntries.length - 1 && <View style={styles.wellnessDivider} />}
+                  </View>
+                ))}
+                {questionnaireUpdatedLabel ? (
+                  <Text style={styles.wellnessUpdated}>{questionnaireUpdatedLabel}</Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={[styles.wellnessCard, styles.wellnessEmptyCard]}>
+                <Text style={styles.wellnessEmptyText}>
+                  Complete the wellness assessment to unlock personalized insights here.
+                </Text>
+                <TouchableOpacity
+                  style={styles.wellnessAction}
+                  onPress={() => navigation.navigate("YouthQuestionnaire", { showRolePrompt: true })}
+                >
+                  <Text style={styles.wellnessActionText}>Start Assessment</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
           {/* Account Settings */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account Settings</Text>
@@ -747,6 +1043,57 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 12,
   },
+  trustedCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.secondary,
+  },
+  trustedCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trustedCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  trustedStatus: {
+    marginBottom: 20,
+  },
+  trustedStatusText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  trustedDescription: {
+    marginTop: 8,
+    fontSize: 13,
+    color: COLORS.textLight,
+    lineHeight: 18,
+  },
+  trustedButton: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  trustedButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   actionCard: {
     width: (SCREEN_WIDTH - 52) / 2,
     backgroundColor: COLORS.card,
@@ -829,6 +1176,65 @@ const styles = StyleSheet.create({
   profileCardSubtitle: {
     fontSize: 13,
     color: COLORS.textLight,
+  },
+  wellnessCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  wellnessRow: {
+    marginBottom: 12,
+  },
+  wellnessLabel: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  wellnessValue: {
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
+  wellnessDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginTop: 12,
+  },
+  wellnessUpdated: {
+    marginTop: 12,
+    fontSize: 12,
+    color: COLORS.textLighter,
+    textAlign: 'right',
+  },
+  wellnessEmptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  wellnessEmptyText: {
+    color: COLORS.textLight,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  wellnessAction: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.secondary,
+  },
+  wellnessActionText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
   dangerCard: {
     backgroundColor: COLORS.card,

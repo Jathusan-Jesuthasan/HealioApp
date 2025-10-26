@@ -6,25 +6,90 @@ import { sendEmail } from "../utils/sendEmail.js";
 const generateToken = (id, expiresIn = "30d") =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn });
 
+const normalizeRole = (role) => {
+  const value = (role || "").toString().toLowerCase();
+  return value === "trusted" ? "Trusted" : "Youth";
+};
+
+const normalizeGender = (gender) => {
+  const value = (gender || "").toString().toLowerCase();
+  switch (value) {
+    case "male":
+      return "Male";
+    case "female":
+      return "Female";
+    case "prefer-not-to-say":
+      return "Prefer not to say";
+    case "other":
+    case "non-binary":
+    case "transgender":
+      return "Other";
+    default:
+      return "";
+  }
+};
+
 // POST /api/auth/register
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role = "Youth" } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role = "Youth",
+      age,
+      gender,
+    } = req.body || {};
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email and password are required" });
     }
 
+    const normalizedRole = normalizeRole(role);
+    const normalizedGender = normalizeGender(gender);
+
+    const numericAge = age !== undefined && age !== null ? Number(age) : null;
+    if (numericAge !== null) {
+      if (Number.isNaN(numericAge) || numericAge < 13 || numericAge > 65) {
+        return res.status(400).json({ message: "Please provide a valid age between 13 and 65" });
+      }
+    }
+
+    if (!normalizedGender) {
+      return res.status(400).json({ message: "Please provide a valid gender" });
+    }
+
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: "User already exists" });
 
-    const user = await User.create({ name, email, password, role });
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: normalizedRole,
+      age: numericAge,
+      gender: normalizedGender,
+      roles: [normalizedRole],
+    });
+
+    const profile = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      age: user.age,
+      gender: user.gender,
+    };
+
     return res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      age: user.age,
+      gender: user.gender,
       token: generateToken(user._id),
+      profile,
     });
   } catch (err) {
     console.error("Register error:", err);

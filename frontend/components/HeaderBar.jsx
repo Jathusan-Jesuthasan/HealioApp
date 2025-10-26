@@ -1,5 +1,5 @@
 // components/HeaderBar.jsx
-import React, { useEffect, useRef, useContext } from "react";
+import React, { useEffect, useRef, useContext, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import Svg, { Path } from "react-native-svg";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
+import { BASE_URL } from "../config/api";
 import { navigate as globalNavigate, navigationRef } from "../navigation/NavigationService";
 
 const COLORS = {
@@ -27,7 +28,7 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
   const { user, userRole, setUserRole } = useContext(AuthContext);
   const slide = useRef(new Animated.Value(-24)).current;
   const fade = useRef(new Animated.Value(0)).current;
-    const bellBounce = useRef(new Animated.Value(0)).current;
+  const bellBounce = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const backPulse = useRef(new Animated.Value(0)).current;
 
@@ -46,15 +47,57 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
   }, []);
 
   useEffect(() => {
+    let pulseLoop;
     if (unreadCount > 0) {
-      Animated.loop(
+      pulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: false }),
           Animated.timing(pulse, { toValue: 0, duration: 800, useNativeDriver: false }),
         ])
-      ).start();
+      );
+      pulseLoop.start();
+    } else {
+      pulse.stopAnimation();
+      pulse.setValue(0);
     }
-  }, [unreadCount]);
+
+    return () => {
+      if (pulseLoop) {
+        pulseLoop.stop();
+      }
+    };
+  }, [unreadCount, pulse]);
+
+  const profileImageUri = useMemo(() => {
+    const candidates = [
+      user?.avatarUrl,
+      user?.profileImage,
+      user?.photoURL,
+      user?.photoUrl,
+      user?.avatar,
+      user?.avatar?.url,
+    ];
+
+    for (const source of candidates) {
+      if (!source) continue;
+      if (typeof source === "string" && source.trim().length) {
+        const trimmed = source.trim();
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        if (trimmed.startsWith("//")) return `https:${trimmed}`;
+        const normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+        return `${BASE_URL}${normalized}`;
+      }
+      if (typeof source === "object" && typeof source?.uri === "string") {
+        const uri = source.uri.trim();
+        if (/^https?:\/\//i.test(uri)) return uri;
+        if (uri.startsWith("//")) return `https:${uri}`;
+        const normalized = uri.startsWith("/") ? uri : `/${uri}`;
+        return `${BASE_URL}${normalized}`;
+      }
+    }
+
+    return null;
+  }, [user]);
 
   const bellScale = bellBounce.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const badgeScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
@@ -192,8 +235,8 @@ export default function HeaderBar({ navigation, unreadCount = 0, onBack }) {
               delayLongPress={400}
             >
               <Animated.View style={[styles.profileRing, { transform: [{ scale: backScale }] }]}> 
-                {user?.photoURL ? (
-                  <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+                {profileImageUri ? (
+                  <Image source={{ uri: profileImageUri }} style={styles.profileImage} />
                 ) : (
                   <View style={styles.initialsWrap}>
                     <Text style={styles.initialsText}>{getInitials(user)}</Text>
