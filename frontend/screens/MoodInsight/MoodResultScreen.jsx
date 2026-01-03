@@ -13,10 +13,15 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import ConfettiCannon from "react-native-confetti-cannon";
+import { getEmotionEmoji } from "../../utils/emotionEmoji";
 
 const MoodResultScreen = ({ route, navigation }) => {
   const { emoji, sentiment, emotion, confidence, funnyComment, note } =
     route.params || {};
+  const displayEmoji = getEmotionEmoji(emotion, sentiment, emoji || "🙂");
+  const shareComment = funnyComment ? `"${funnyComment}"` : "";
+  const shareNote = note ? `\n📝 ${note}` : "";
+  const displayComment = funnyComment || "Keep reflecting to learn more about yourself.";
 
   const confettiRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -86,7 +91,7 @@ const MoodResultScreen = ({ route, navigation }) => {
     try {
       const message = `💚 My Healio Mood Today: ${sentiment || "Neutral"}\n🧠 Emotion: ${
         emotion || "unknown"
-      } (${confidencePct})\n💬 "${funnyComment}"\n📝 ${note}\n\n#Healio #MentalWellness`;
+      } (${confidencePct})\n${displayEmoji} ${shareComment}${shareNote}\n\n#Healio #MentalWellness`;
       await Share.share({ message });
     } catch (error) {
       console.error("Share error:", error);
@@ -105,7 +110,7 @@ const MoodResultScreen = ({ route, navigation }) => {
       />
 
       <View style={styles.card}>
-        <Text style={styles.emoji}>{emoji || "🙂"}</Text>
+        <Text style={styles.emoji}>{displayEmoji}</Text>
         <Text style={styles.moodTitle}>{sentiment || "Neutral"}</Text>
 
         <View style={styles.divider} />
@@ -140,7 +145,7 @@ const MoodResultScreen = ({ route, navigation }) => {
         </Text>
 
         {/* 💬 Support Message */}
-        <Text style={styles.comment}>{funnyComment}</Text>
+    <Text style={styles.comment}>{displayComment}</Text>
 
         {/* 📝 Journal */}
         <Text style={styles.noteTitle}>📝 Your Note</Text>

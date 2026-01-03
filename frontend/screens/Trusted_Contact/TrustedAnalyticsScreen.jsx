@@ -20,6 +20,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LineChart } from "react-native-chart-kit";
+import Svg, { Defs, LinearGradient, Stop, Path, Polyline, Line as SvgLine } from "react-native-svg";
 import Colors from "../../utils/Colors";
 import { AuthContext } from "../../context/AuthContext";
 import {
@@ -435,7 +436,10 @@ const TrustedAnalyticsScreen = ({ route }) => {
       );
     }
 
-    const data = analyticsData?.recentMood || [];
+    const data = (analyticsData?.recentMood || []).map((entry) => ({
+      label: entry.label ?? "",
+      value: typeof entry.value === "number" ? entry.value : 0,
+    }));
     if (!data.length) {
       return (
         <View style={[styles.emptyCard, cardInset]}>
@@ -445,7 +449,31 @@ const TrustedAnalyticsScreen = ({ route }) => {
       );
     }
 
-    const chartWidth = Math.max(260, screenWidth - responsive.spacing.screen * 2);
+    // Custom web fallback keeps behaviour close to the native chart-kit look
+      const chartWidth = Math.max(260, screenWidth - responsive.spacing.screen * 2);
+      const chartHeight = 220;
+      const isWeb = Platform.OS === "web";
+    const values = data.map((entry) => entry.value);
+    const maxValue = Math.max(...values, 0);
+    const minValue = Math.min(...values, 0);
+    const valueRange = Math.max(maxValue - minValue, 1);
+    const chartPadding = 24;
+    const usableWidth = Math.max(1, chartWidth - chartPadding * 2);
+    const usableHeight = Math.max(1, chartHeight - chartPadding * 2);
+    const pointStep = data.length > 1 ? usableWidth / (data.length - 1) : 0;
+    const points = data.map((entry, index) => {
+      const x = chartPadding + index * pointStep;
+      const normalized = (entry.value - minValue) / valueRange;
+      const clamped = Math.max(0, Math.min(1, Number.isFinite(normalized) ? normalized : 0));
+      const y = chartPadding + usableHeight - clamped * usableHeight;
+      return { x, y };
+    });
+    const lastPoint = points.length ? points[points.length - 1] : null;
+    const areaPath = points.length
+      ? `M ${chartPadding} ${chartPadding + usableHeight} ${points
+          .map((point) => `L ${point.x} ${point.y}`)
+          .join(" ")} L ${(lastPoint?.x ?? chartPadding)} ${chartPadding + usableHeight} Z`
+      : null;
 
     return (
       <View style={[styles.chartCard, cardInset]}>
@@ -458,51 +486,112 @@ const TrustedAnalyticsScreen = ({ route }) => {
             <Ionicons name="information-circle-outline" size={18} color={Colors.textSecondary} />
           </Touchable>
         </View>
-        <LineChart
-          data={{
-            labels: data.map((entry) => entry.label),
-            datasets: [
-              {
-                data: data.map((entry) => entry.value),
-                color: () => Colors.secondary,
-                strokeWidth: 3,
+        {isWeb ? (
+          <View style={styles.chartWebContainer}>
+            <Svg width={chartWidth} height={chartHeight} style={styles.chartSvg}>
+              <Defs>
+                <LinearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0%" stopColor="rgba(16, 185, 129, 0.25)" />
+                  <Stop offset="100%" stopColor="rgba(16, 185, 129, 0)" />
+                </LinearGradient>
+              </Defs>
+              <SvgLine
+                x1={chartPadding}
+                y1={chartPadding + usableHeight}
+                x2={chartPadding + usableWidth}
+                y2={chartPadding + usableHeight}
+                stroke={Colors.border}
+                strokeWidth={1}
+              />
+              <SvgLine
+                x1={chartPadding}
+                y1={chartPadding}
+                x2={chartPadding}
+                y2={chartPadding + usableHeight}
+                stroke={Colors.border}
+                strokeWidth={1}
+              />
+              {areaPath ? (
+                <Path d={areaPath} fill="url(#moodGradient)" stroke="none" />
+              ) : null}
+              {points.length > 1 ? (
+                <Polyline
+                  points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                  fill="none"
+                  stroke={Colors.secondary}
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              ) : null}
+              {points.length === 1 ? (
+                <SvgLine
+                  x1={chartPadding}
+                  y1={points[0].y}
+                  x2={chartPadding + usableWidth}
+                  y2={points[0].y}
+                  stroke={Colors.secondary}
+                  strokeWidth={3}
+                />
+              ) : null}
+            </Svg>
+            {data.length > 1 && (
+              <View style={[styles.chartLabels, { width: chartWidth - chartPadding * 2 }]}>
+                {data.map((entry, index) => (
+                  <Text key={`${entry.label}-${index}`} style={styles.chartLabel} numberOfLines={1}>
+                    {entry.label}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <LineChart
+            data={{
+              labels: data.map((entry) => entry.label),
+              datasets: [
+                {
+                  data: data.map((entry) => entry.value),
+                  color: () => Colors.secondary,
+                  strokeWidth: 3,
+                },
+              ],
+            }}
+            width={chartWidth}
+            height={chartHeight}
+            withDots={true}
+            withShadow={false}
+            withInnerLines={true}
+            withOuterLines={true}
+            withVerticalLines={true}
+            withHorizontalLines={true}
+            fromZero
+            yAxisInterval={1}
+            chartConfig={{
+              backgroundColor: "#FFFFFF",
+              backgroundGradientFrom: "#FFFFFF",
+              backgroundGradientTo: "#FFFFFF",
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
+              style: {
+                borderRadius: 16,
               },
-            ],
-          }}
-          width={chartWidth}
-          height={220}
-          withDots={true}
-          withShadow={false}
-          withInnerLines={true}
-          withOuterLines={true}
-          withVerticalLines={true}
-          withHorizontalLines={true}
-          fromZero
-          yAxisInterval={1}
-          chartConfig={{
-            backgroundColor: "#FFFFFF",
-            backgroundGradientFrom: "#FFFFFF",
-            backgroundGradientTo: "#FFFFFF",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForDots: {
-              r: "5",
-              strokeWidth: "2",
-              stroke: Colors.accent,
-            },
-            propsForBackgroundLines: {
-              strokeDasharray: "",
-              stroke: Colors.border,
-              strokeWidth: 1,
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
+              propsForDots: {
+                r: "5",
+                strokeWidth: "2",
+                stroke: Colors.accent,
+              },
+              propsForBackgroundLines: {
+                strokeDasharray: "",
+                stroke: Colors.border,
+                strokeWidth: 1,
+              },
+            }}
+            bezier
+            style={styles.chart}
+          />
+        )}
       </View>
     );
   };
@@ -1189,6 +1278,25 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 16,
     marginTop: 8,
+  },
+  chartWebContainer: {
+    alignItems: "center",
+  },
+  chartSvg: {
+    alignSelf: "center",
+  },
+  chartLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignSelf: "center",
+    marginTop: 12,
+    gap: 8,
+  },
+  chartLabel: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
   sectionCard: {
     backgroundColor: "#fff",

@@ -1,5 +1,6 @@
 // frontend/config/api.js
 import axios from "axios";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 /**

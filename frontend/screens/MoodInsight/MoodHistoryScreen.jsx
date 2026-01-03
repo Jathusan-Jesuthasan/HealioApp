@@ -15,6 +15,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../utils/Colors';
 import { useNavigation } from '@react-navigation/native';
+import { getEmotionEmoji } from '../../utils/emotionEmoji';
 
 /* 🕒 Friendly date formatter */
 const formatDate = (isoString) => {
@@ -42,6 +43,13 @@ const formatDate = (isoString) => {
   } catch {
     return '';
   }
+};
+
+const toConfidencePercent = (value) => {
+  if (typeof value !== 'number') {
+    return 0;
+  }
+  return value > 1 ? Math.round(value) : Math.round(value * 100);
 };
 
 const MoodHistoryScreen = () => {
@@ -133,16 +141,7 @@ const MoodHistoryScreen = () => {
       ]).start();
     }, []);
 
-    const moodEmoji =
-      item.mood === 'Happy'
-        ? '😊'
-        : item.mood === 'Sad'
-          ? '😔'
-          : item.mood === 'Angry'
-            ? '😡'
-            : item.mood === 'Tired'
-              ? '😴'
-              : '😐';
+    const moodEmoji = getEmotionEmoji(item.emotion || item.sentiment, item.mood, item.emoji);
 
     return (
       <Animated.View
@@ -159,8 +158,8 @@ const MoodHistoryScreen = () => {
               params: {
                 emoji: moodEmoji,
                 sentiment: item.mood,
-                emotion: item.sentiment,
-                confidence: Math.round((item.confidence || 0) * 100),
+                emotion: item.emotion || item.sentiment,
+                confidence: toConfidencePercent(item.confidence),
                 funnyComment: '',
                 note: item.journal,
               },
@@ -176,7 +175,7 @@ const MoodHistoryScreen = () => {
               </Text>
               {item.sentiment && (
                 <Text style={styles.sentiment}>
-                  🧠 {item.sentiment} ({Math.round((item.confidence || 0) * 100)}%)
+                  🧠 {item.sentiment} ({toConfidencePercent(item.confidence)}%)
                 </Text>
               )}
             </View>

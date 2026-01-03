@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Animated,
   Alert,
-  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,14 +22,13 @@ export default function RewardsScreen() {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const userId = "demo_user";
 
-  // ✅ Fetch rewards from backend and trigger celebration
+  // ✅ Fetch rewards and trigger celebration
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.get(`/api/rewards/${userId}`);
         setRewards(res.data);
         animateProgress(res.data.xp % 1000);
-        // wait for AsyncStorage readiness
         setTimeout(checkDailyCelebration, 800);
       } catch (err) {
         console.error("Rewards fetch error:", err);
@@ -39,21 +37,17 @@ export default function RewardsScreen() {
     fetchData();
   }, []);
 
-  // 🎉 Daily celebration logic (mobile safe)
+  // 🎉 Daily celebration logic
   const checkDailyCelebration = async () => {
     try {
-      const today = new Date().toISOString().split("T")[0]; // ✅ consistent format
+      const today = new Date().toISOString().split("T")[0];
       const lastCelebration = await AsyncStorage.getItem("lastCelebrateDate");
-
-      console.log("📅 Today:", today, "| Last Celebration:", lastCelebration);
 
       if (lastCelebration !== today) {
         setDailyCelebrate(true);
         playGlowAnimation();
         await AsyncStorage.setItem("lastCelebrateDate", today);
         Alert.alert("🎉 Welcome Back!", "Keep your streak alive today 💪");
-
-        // Stop animation after 4 seconds
         setTimeout(() => setDailyCelebrate(false), 4000);
       }
     } catch (err) {
@@ -98,6 +92,13 @@ export default function RewardsScreen() {
     } catch (err) {
       console.error("Refresh error:", err);
     }
+  };
+
+  // 🧮 Format numbers to 2 digits
+  const formatNum = (value) => {
+    if (value === null || value === undefined) return "0.00";
+    const num = parseFloat(value);
+    return isNaN(num) ? "0.00" : num.toFixed(2);
   };
 
   // 🎨 Tier styles
@@ -169,7 +170,6 @@ export default function RewardsScreen() {
             <Text style={styles.badgeText}>{rewards.badge} Tier</Text>
           </LinearGradient>
 
-          {/* 🎉 Confetti animation */}
           {dailyCelebrate && (
             <LottieView
               source={require("../../assets/lottie/confetti.json")}
@@ -182,40 +182,11 @@ export default function RewardsScreen() {
 
         {/* 📊 Stats Grid */}
         <View style={styles.statsGrid}>
-          <StatCard icon="timer-outline" color="#3B82F6" label="Minutes" value={rewards.totalMinutes} />
-          <StatCard icon="fitness-outline" color="#10B981" label="Sessions" value={rewards.totalSessions} />
-          <StatCard icon="flame-outline" color="#F97316" label="Streak" value={`${rewards.streakDays} days`} />
-          <StatCard icon="star-outline" color="#8B5CF6" label="XP" value={`${rewards.xp}`} />
+          <StatCard icon="timer-outline" color="#3B82F6" label="Minutes" value={formatNum(rewards.totalMinutes)} />
+          <StatCard icon="fitness-outline" color="#10B981" label="Sessions" value={formatNum(rewards.totalSessions)} />
+          <StatCard icon="flame-outline" color="#F97316" label="Streak" value={`${formatNum(rewards.streakDays)} days`} />
+          <StatCard icon="star-outline" color="#8B5CF6" label="XP" value={formatNum(rewards.xp)} />
         </View>
-
-        {/* XP Progress
-        <View style={styles.xpBox}>
-          <Text style={styles.xpLabel}>Progress to next tier</Text>
-          <View style={styles.progressBar}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  width: progressAnim.interpolate({
-                    inputRange: [0, 100],
-                    outputRange: ["0%", "100%"],
-                  }),
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.xpHint}>{rewards.xp % 1000}/1000 XP</Text>
-        </View>
-         */}
-
-        {/* Motivation Tip 
-        <View style={styles.tipBox}>
-          <Ionicons name="sparkles-outline" size={20} color="#4A90E2" />
-          <Text style={styles.tipText}>
-            🌱 A new day, a new chance! Keep your wellness journey going strong.
-          </Text>
-        </View>
-        */}
 
         {/* 🔄 Refresh Button */}
         <TouchableOpacity style={styles.refreshBtn} onPress={handleRefresh}>
@@ -224,10 +195,7 @@ export default function RewardsScreen() {
         </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
-    
-
   );
-  
 }
 
 /* --- Stat Card --- */
@@ -279,26 +247,6 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 14, fontWeight: "600", marginTop: 4 },
   value: { fontSize: 18, fontWeight: "800", color: "#0F172A", marginTop: 2 },
-  xpBox: { marginTop: 20, marginBottom: 20 },
-  xpLabel: { fontSize: 14, color: "#334155", marginBottom: 6 },
-  progressBar: {
-    height: 12,
-    width: "100%",
-    backgroundColor: "#E5E7EB",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  progressFill: { height: "100%", backgroundColor: "#10B981", borderRadius: 8 },
-  xpHint: { marginTop: 4, fontSize: 12, color: "#475569" },
-  tipBox: {
-    backgroundColor: "#F1F5F9",
-    padding: 14,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  tipText: { marginLeft: 8, color: "#1E3A8A", fontSize: 14, flex: 1 },
   refreshBtn: {
     flexDirection: "row",
     justifyContent: "center",

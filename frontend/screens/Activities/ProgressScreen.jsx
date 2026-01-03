@@ -41,6 +41,7 @@ export default function ProgressScreen() {
           api.get(`/api/meditations/${userId}`),
         ]);
 
+        // ✅ Sync goals
         if (goalRes.data && Object.keys(goalRes.data).length) {
           const backendGoals = {
             sessionsPerWeek: Number(goalRes.data.sessionsPerWeek) || 0,
@@ -53,14 +54,10 @@ export default function ProgressScreen() {
           const localUpdatedAt = Number(goals?.updatedAt) || 0;
           if (backendGoals.updatedAt >= localUpdatedAt) {
             await saveGoals(backendGoals, { skipStorage: true });
-          } else {
-            console.log("ℹ️ Skipped backend goals sync (local newer):", {
-              backend: backendGoals,
-              local: goals,
-            });
           }
         }
 
+        // ✅ Handle meditation logs
         if (medRes.data?.length) {
           const formatted = medRes.data.map((m) => ({
             ts: new Date(m.createdAt).getTime(),
@@ -84,6 +81,7 @@ export default function ProgressScreen() {
     fetchFromBackend();
   }, [userId, saveGoals]);
 
+  // 🔥 Calculate streak (consecutive days)
   const calculateAndSaveStreak = async (logList) => {
     if (!logList.length) {
       setStreak(0);
@@ -108,15 +106,24 @@ export default function ProgressScreen() {
     await AsyncStorage.setItem(STREAK_KEY, currentStreak.toString());
   };
 
+  // 📆 Last 7 days (Mon–Sun)
   const last7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return d.toDateString();
+    d.setHours(0, 0, 0, 0);
+    return d;
   });
 
-  const counts = last7Days.map(
-    (day) => logs.filter((l) => new Date(l.ts).toDateString() === day).length
-  );
+  // ✅ Fix timezone comparison and sum total minutes per day
+  const counts = last7Days.map((targetDate) => {
+    return logs
+      .filter((l) => {
+        const logDate = new Date(l.ts);
+        logDate.setHours(0, 0, 0, 0);
+        return logDate.getTime() === targetDate.getTime();
+      })
+      .reduce((sum, l) => sum + (l.duration || 0), 0);
+  });
 
   if (loading) {
     return (
@@ -132,7 +139,7 @@ export default function ProgressScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>📈 Your Progress</Text>
 
-        {/* Goal Card */}
+        {/* 🎯 Goals */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🎯 Your Goals</Text>
           <View style={styles.cardRow}>
@@ -147,7 +154,7 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* Streak Card */}
+        {/* 🔥 Streak */}
         <View style={styles.streakCard}>
           <Text style={styles.streakText}>🔥 {streak}-Day Streak</Text>
           <Text style={styles.streakSubtext}>
@@ -155,10 +162,11 @@ export default function ProgressScreen() {
           </Text>
         </View>
 
-        {/* Chart */}
+        {/* 📊 Chart */}
         <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>📊 Weekly Activity</Text>
+          <Text style={styles.cardTitle}>📊 Weekly Activity (Minutes)</Text>
           <LineChart
+            key={counts.join(",")}
             data={{
               labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
               datasets: [{ data: counts }],
@@ -166,13 +174,13 @@ export default function ProgressScreen() {
             width={Dimensions.get("window").width - 40}
             height={230}
             fromZero
-            yAxisLabel=""
+            yAxisSuffix="m"
             chartConfig={{
               backgroundGradientFrom: "#E8F1FC",
               backgroundGradientTo: "#C8E1FA",
               color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
               labelColor: () => "#555",
-              decimalPlaces: 0,
+              decimalPlaces: 1,
               style: { borderRadius: 16 },
               propsForDots: {
                 r: "5",

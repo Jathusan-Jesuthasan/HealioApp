@@ -39,7 +39,10 @@ export default function YouthBottomNavBar({ state, navigation }) {
       <TabIcon
         icon={<Ionicons name="leaf" size={26} />}
         active={state.routeNames[state.index] === "Activity"}
-        onPress={() => handlePress("Activity")}
+        onPress={() => navigation.reset({
+          index: 0,
+          routes: [{ name: "Activity" }],
+        })}
         label="Activities"
       />
 

@@ -319,15 +319,26 @@ const Onboarding1Screen = memo(function Onboarding1Screen(props) {
 function AuthStack({ hasOnboarded, setHasOnboarded }) {
   return (
     <Stack.Navigator
-      initialRouteName={hasOnboarded ? 'Login' : 'Welcome'}
+      initialRouteName="Welcome"
       screenOptions={{ headerShown: false }}
     >
-      {!hasOnboarded && (
-        <>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="Onboarding1" component={OnboardingScreen1} />
-        </>
-      )}
+      <Stack.Screen name="Welcome">
+        {(props) => (
+          <WelcomeScreen
+            {...props}
+            hasOnboarded={hasOnboarded}
+            setHasOnboarded={setHasOnboarded}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="Onboarding1">
+        {(props) => (
+          <OnboardingScreen1
+            {...props}
+            setHasOnboarded={setHasOnboarded}
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="OnboardingWizard" component={OnboardingWizard} />

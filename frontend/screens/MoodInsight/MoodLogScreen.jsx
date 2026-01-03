@@ -18,17 +18,12 @@ import { Colors } from '../../utils/Colors';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { getEmotionEmoji } from '../../utils/emotionEmoji';
 
 /* ---------------- Funny Message Helpers ---------------- */
 const funnyMessages = {
-  Happy: [
-    '🌈 You’re basically a walking sunshine today!',
-    '😎 Even the Wi-Fi can feel your positive vibes.',
-  ],
-  Sad: [
-    '😭 Sending virtual hugs... and maybe chocolate?',
-    '🌧️ Even clouds need a break sometimes.',
-  ],
+  Happy: ['🌈 You’re basically a walking sunshine today!', '😎 Even the Wi-Fi can feel your positive vibes.'],
+  Sad: ['😭 Sending virtual hugs... and maybe chocolate?', '🌧️ Even clouds need a break sometimes.'],
   Angry: ['😡 Breathe in… breathe out… coffee helps too!', '🔥 Oops, someone woke up spicy today!'],
   Tired: ['😴 Power-nap protocol initiated…', '☕ Caffeine levels dangerously low!'],
   Neutral: ['😐 Meh-mode activated.', '🤔 Not bad, not great — just existing.'],
@@ -47,9 +42,11 @@ const MoodLogScreen = () => {
   const [selectedFactors, setSelectedFactors] = useState([]);
   const [journalText, setJournalText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(null); // "analyzing" | "saving" | null
+  const [loadingStep, setLoadingStep] = useState(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   const moods = [
     { emoji: '😊', label: 'Happy', color: '#F59E0B' },
@@ -60,23 +57,10 @@ const MoodLogScreen = () => {
   ];
 
   const factors = [
-    'Work',
-    'Exercise',
-    'Family',
-    'Hobbies',
-    'Finances',
-    'Sleep',
-    'Drink',
-    'Food',
-    'Relationships',
-    'Education',
-    'Weather',
-    'Music',
-    'Travel',
-    'Health',
+    'Work','Exercise','Family','Hobbies','Finances','Sleep','Drink','Food',
+    'Relationships','Education','Weather','Music','Travel','Health',
   ];
 
-  // Convert HEX → RGBA
   const hexToRgba = (hex, alpha = 0.12) => {
     const match = hex.replace('#', '').match(/.{1,2}/g);
     if (!match) return hex;
@@ -106,9 +90,10 @@ const MoodLogScreen = () => {
       setLoadingStep('analyzing');
 
       const token = await AsyncStorage.getItem('userToken');
-      const baseURL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+      const baseURL = Platform.OS === 'android'
+        ? 'http://10.0.2.2:5000'
+        : 'http://localhost:5000';
 
-      // 1️⃣ Analyze Emotion using backend
       let emotion = null;
       let confidence = null;
       let confPct = null;
@@ -118,100 +103,50 @@ const MoodLogScreen = () => {
         const { data } = await axios.post(
           `${baseURL}/api/analyze-emotion`,
           { text: journalText },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+          { headers: { 'Content-Type': 'application/json' } }
         );
         emotion = data?.emotion || null;
         confidence = data?.confidence || null;
         confPct = typeof confidence === 'number' ? Math.round(confidence * 100) : null;
         mappedMood = data?.mappedMood || null;
-      } catch (err) {
-        console.error('❌ Emotion analyze error:', err.response?.data || err.message);
-      }
+      } catch {}
 
-      // 2️⃣ Final Mood + funny message
       const finalMood = mappedMood || selectedMood.label || 'Neutral';
       const joke = getFunnyLine(finalMood);
-
-      // 3️⃣ Save to backend
-      if (!token) {
-        Alert.alert('Auth Error', 'You are not logged in.');
-        return;
-      }
+      const resultEmoji = getEmotionEmoji(emotion, finalMood, selectedMood?.emoji);
 
       setLoadingStep('saving');
 
       await axios.post(
         `${baseURL}/api/moodlogs/add`,
-        {
-          mood: finalMood,
-          factors: selectedFactors,
-          journal: journalText,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          timeout: 15000,
-        }
+        { mood: finalMood, factors: selectedFactors, journal: journalText },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // 4️⃣ Save locally
-      try {
-        const previous = JSON.parse(await AsyncStorage.getItem('localMoodLogs')) || [];
-        const newEntry = {
-          date: new Date().toISOString(),
-          emoji: selectedMood.emoji,
-          mood: finalMood,
-          factors: selectedFactors,
-          journal: journalText,
-          funnyComment: joke,
-          emotion,
-          confidence: confPct,
-        };
-        await AsyncStorage.setItem('localMoodLogs', JSON.stringify([newEntry, ...previous]));
-      } catch (err) {
-        console.error('Local save error:', err);
-      }
-
-      // 5️⃣ Navigate to results (MoodResult is inside the Profile stack)
       navigation.navigate('Profile', {
         screen: 'MoodResult',
-        params: {
-          emoji: selectedMood.emoji,
-          sentiment: finalMood,
-          emotion,
-          confidence: confPct,
-          funnyComment: joke,
-          note: journalText,
-        },
+        params: { emoji: resultEmoji, sentiment: finalMood, emotion, confidence: confPct, funnyComment: joke, note: journalText },
       });
-    } catch (error) {
-      console.error('❌ Error saving mood:', error.response?.data || error.message);
-      Alert.alert('Error', 'Failed to save mood log.');
     } finally {
       setLoading(false);
       setLoadingStep(null);
     }
   };
 
-  /* ---------------- Pulse Animation ---------------- */
+  /* ---------------- Animations ---------------- */
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
   useEffect(() => {
     if (loading) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 500,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
+          Animated.timing(pulseAnim, { toValue: 1.05, duration: 500, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
         ])
       ).start();
     } else {
@@ -223,91 +158,77 @@ const MoodLogScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.primary} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
-            <Text style={styles.logo}>🩺 Healio</Text>
-            <Text style={styles.headerSubtitle}>Mood Journal</Text>
-          </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 20 }}>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], width: '100%', alignItems: 'center' }}>
+            <View style={styles.card}>
+              <Text style={styles.title}>How are you feeling today?</Text>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>How are you feeling today?</Text>
-
-            {/* Mood Selection */}
-            <View style={styles.moodContainer}>
-              {moods.map((mood) => (
-                <TouchableOpacity
-                  key={mood.label}
-                  style={[
-                    styles.moodButton,
-                    selectedMood?.label === mood.label && {
-                      backgroundColor: hexToRgba(mood.color, 0.12),
-                      borderColor: mood.color,
-                      transform: [{ scale: 1.05 }],
-                    },
-                  ]}
-                  onPress={() => setSelectedMood(mood)}>
-                  <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                  <Text style={styles.moodLabel}>{mood.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Factors */}
-            <Text style={styles.sectionTitle}>What’s affecting your mood?</Text>
-            <View style={styles.factorsContainer}>
-              {factors.map((factor, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={[
-                    styles.factorButton,
-                    selectedFactors.includes(factor) && styles.factorButtonSelected,
-                  ]}
-                  onPress={() => toggleFactor(factor)}>
-                  <Text
+              <View style={styles.moodGrid}>
+                {moods.map((mood) => (
+                  <TouchableOpacity
+                    key={mood.label}
                     style={[
-                      styles.factorText,
-                      selectedFactors.includes(factor) && styles.factorTextSelected,
-                    ]}>
-                    {factor}
+                      styles.moodButton,
+                      selectedMood?.label === mood.label && {
+                        backgroundColor: hexToRgba(mood.color),
+                        borderColor: mood.color,
+                      },
+                    ]}
+                    onPress={() => setSelectedMood(mood)}
+                    activeOpacity={0.85}>
+                    <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+                    <Text style={styles.moodLabel}>{mood.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.sectionTitle}>What’s affecting your mood?</Text>
+              <View style={styles.factorsContainer}>
+                {factors.map((factor) => (
+                  <TouchableOpacity
+                    key={factor}
+                    style={[
+                      styles.factorChip,
+                      selectedFactors.includes(factor) && styles.factorChipSelected,
+                    ]}
+                    onPress={() => toggleFactor(factor)}>
+                    <Text
+                      style={[
+                        styles.factorText,
+                        selectedFactors.includes(factor) && styles.factorTextSelected,
+                      ]}>
+                      {factor}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.sectionTitle}>Write about it</Text>
+              <TextInput
+                style={styles.journalInput}
+                multiline
+                placeholder="Write about your day..."
+                value={journalText}
+                onChangeText={setJournalText}
+              />
+
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <TouchableOpacity
+                  style={[styles.submitButton, loading && styles.submitDisabled]}
+                  onPress={handleSubmit}
+                  disabled={loading}>
+                  <Text style={styles.submitText}>
+                    {loadingStep === 'analyzing'
+                      ? '🧠 AI is generating your insight...'
+                      : loadingStep === 'saving'
+                      ? '💾 Saving your mood log...'
+                      : 'Log Mood & Continue'}
                   </Text>
                 </TouchableOpacity>
-              ))}
+              </Animated.View>
             </View>
-
-            {/* Journal Input */}
-            <Text style={styles.sectionTitle}>Write about it</Text>
-            <TextInput
-              style={styles.journalInput}
-              multiline
-              placeholder="Write about your day..."
-              value={journalText}
-              onChangeText={setJournalText}
-            />
-
-            {/* Submit Button */}
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  (!selectedMood || loading) && styles.submitButtonDisabled,
-                ]}
-                onPress={handleSubmit}
-                disabled={!selectedMood || loading}>
-                <Text style={styles.submitButtonText}>
-                  {loadingStep === 'analyzing'
-                    ? '🧠 AI is generating your insight...'
-                    : loadingStep === 'saving'
-                      ? '💾 Saving your mood log...'
-                      : loading
-                        ? '⏳ Please wait...'
-                        : 'Log Mood & Continue'}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -317,68 +238,96 @@ const MoodLogScreen = () => {
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.primary },
-  keyboardAvoid: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingBottom: 20 },
-  header: { alignItems: 'center', padding: 16 },
-  logo: { fontSize: 28, fontWeight: 'bold', color: Colors.secondary },
-  headerSubtitle: { fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
+
   card: {
     backgroundColor: Colors.card,
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
+    margin: 12,
+    padding: 16,
+    borderRadius: 14,
     elevation: 2,
+    alignSelf: 'center',
+    width: '92%',
+    maxWidth: 420,
   },
-  title: { fontSize: 20, fontWeight: '600', marginBottom: 16, textAlign: 'center' },
-  moodContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  moodButton: {
-    width: '28%',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
+
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
     marginBottom: 12,
   },
-  moodEmoji: { fontSize: 28 },
+
+  moodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  moodButton: {
+    width: '30%',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+
+  moodEmoji: { fontSize: 26 },
   moodLabel: { fontSize: 12, marginTop: 4, color: Colors.textSecondary },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginVertical: 12 },
-  factorsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
-  factorButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginVertical: 10,
+  },
+
+  factorsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 6,
+  },
+
+  factorChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     backgroundColor: Colors.primary,
     margin: 4,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  factorButtonSelected: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
-  factorText: { fontSize: 13, color: Colors.textSecondary },
+
+  factorChipSelected: {
+    backgroundColor: Colors.secondary,
+    borderColor: Colors.secondary,
+  },
+
+  factorText: { fontSize: 12, color: Colors.textSecondary },
   factorTextSelected: { color: 'white', fontWeight: '500' },
+
   journalInput: {
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
     padding: 12,
-    fontSize: 15,
-    minHeight: 120,
-    textAlignVertical: 'top',
+    fontSize: 14,
+    minHeight: 100,
     marginBottom: 12,
+    textAlignVertical: 'top',
   },
+
   submitButton: {
     backgroundColor: Colors.accent,
+    paddingVertical: 13,
     borderRadius: 12,
-    padding: 14,
     alignItems: 'center',
   },
-  submitButtonDisabled: { backgroundColor: Colors.disabled },
-  submitButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+
+  submitDisabled: { opacity: 0.7 },
+
+  submitText: { color: 'white', fontSize: 15, fontWeight: '600' },
 });
 
 export default MoodLogScreen;
