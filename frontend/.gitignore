@@ -2,6 +2,8 @@
 node_modules/
 ../backend/node_modules/
 ../frontend/node_modules/
+frontend/.env
+backend/.env
 .expo/
 dist/
 npm-debug.*
