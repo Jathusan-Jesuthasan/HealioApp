@@ -122,72 +122,6 @@ Healio promotes emotional well-being, early risk detection, and support systems 
 
 ---
 
-## 🧱 System Architecture (High-Level)
-
-```
-Mobile App (React Native)
-        |
-        |-- Firebase Authentication
-        |-- Realtime Database
-        |-- Cloud Messaging (SOS Alerts)
-        |
-        |-- NLP Sentiment Analysis Engine
-```
-
----
-
-## 📂 Project Structure (Example)
-
-```
-healio/
-│── src/
-│   ├── components/
-│   ├── screens/
-│   ├── services/
-│   ├── utils/
-│── assets/
-│── firebase/
-│── App.js
-│── package.json
-│── README.md
-```
-
----
-
-## ⚙️ Installation & Setup
-
-1. Clone the repository
-
-   ```bash
-   git clone https://github.com/your-username/healio.git
-   ```
-
-2. Navigate to the project directory
-
-   ```bash
-   cd healio
-   ```
-
-3. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-4. Configure Firebase
-
-   * Create a Firebase project
-   * Add Firebase config to the project
-   * Enable Authentication, Realtime Database, and Cloud Messaging
-
-5. Run the application
-
-   ```bash
-   npx react-native run-android
-   ```
-
----
-
 ## 🧪 Testing
 
 * Manual functional testing across core user flows
@@ -211,7 +145,7 @@ healio/
 ## 🔗 Source Code
 
 * GitHub Repository:
-  👉 *(Add your GitHub link here)*
+  👉 (https://github.com/Jathusan-Jesuthasan/HealioApp.git)
 
 ---
 
